@@ -8,7 +8,7 @@ public class ConversationTests
     public void Conversation_ShouldInitializeEmpty()
     {
         // Arrange & Act
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // Assert
         Assert.Empty(conversation.Turns);
@@ -21,7 +21,7 @@ public class ConversationTests
     public void AddTurn_ShouldAddTurnToConversation()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var turn = new Turn
         {
             UserOrSystemMessage = new Message { Role = Role.User, Content = "Hello, world!" }
@@ -41,7 +41,7 @@ public class ConversationTests
     public void AddTurn_ShouldUpdateLastActivityTime()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var initialTime = conversation.LastActivityAt;
         var turn = new Turn
         {
@@ -60,7 +60,7 @@ public class ConversationTests
     public void ToChronoMessages_ShouldReturnMessagesInOrder()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // Add turn with user message and assistant response
         var turn1 = new Turn
@@ -82,7 +82,7 @@ public class ConversationTests
         var messages = conversation.ToChronoMessages().ToList();
 
         // Assert
-        Assert.Equal(4, messages.Count);
+        Assert.Equal(4, messages.Count());
         Assert.Equal("Question 1", messages[0].Content);
         Assert.Equal("Answer 1", messages[1].Content);
         Assert.Equal("Question 2", messages[2].Content);
@@ -93,7 +93,7 @@ public class ConversationTests
     public void StateManagement_ShouldStoreAndRetrieveState()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var testObject = new TestState { Value = "test", Number = 42 };
 
         // Act
@@ -110,7 +110,7 @@ public class ConversationTests
     public void StateManagement_ShouldReturnNullForMissingKey()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // Act
         var retrieved = conversation.GetState<TestState>("non-existent");
@@ -123,7 +123,7 @@ public class ConversationTests
     public void ClearState_ShouldRemoveAllState()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         conversation.SetState("key1", new TestState { Value = "test1" });
         conversation.SetState("key2", new TestState { Value = "test2" });
 

@@ -326,7 +326,7 @@ public class ToolCallingTests
         var messages = turn.EnumerateMessages().ToList();
 
         // Assert
-        Assert.Equal(3, messages.Count);
+        Assert.Equal(3, messages.Count());
 
         // User message
         Assert.Equal(Role.User, messages[0].Role);
@@ -378,7 +378,7 @@ public class ToolCallingTests
     public async Task ParallelToolCalls_ShouldBeSupported()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var turn = new Turn
         {
             UserOrSystemMessage = new Message { Role = Role.User, Content = "Get weather for NYC and Seattle" },

@@ -111,7 +111,7 @@ public class MessageModelTests
     public void Conversation_AddTurn_UpdatesCorrectly()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var turn = new Turn
         {
             UserOrSystemMessage = new Message {Role = Role.User, Content = "Test"}
@@ -129,7 +129,7 @@ public class MessageModelTests
     public void Conversation_StateManagement_WorksCorrectly()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // Act
         conversation.SetState("user_name", "Alice");

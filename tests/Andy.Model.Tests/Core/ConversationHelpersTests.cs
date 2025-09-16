@@ -12,7 +12,7 @@ public class ConversationHelpersTests
     public void Conversation_WithHelperMethods_ShouldSimplifyMessageCreation()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // Act - Add system message
         var systemTurn = new Turn
@@ -47,7 +47,7 @@ public class ConversationHelpersTests
     public void ConversationExtensions_GetSummary_ShouldFormatMessages()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         conversation.AddTurn(new Turn
         {
             UserOrSystemMessage = new Message { Role = Role.System, Content = "Be helpful" }
@@ -71,7 +71,7 @@ public class ConversationHelpersTests
     public void ConversationExtensions_ToJson_ShouldSerializeConversation()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         conversation.AddTurn(new Turn
         {
             UserOrSystemMessage = new Message { Role = Role.User, Content = "Test message" }
@@ -153,7 +153,7 @@ public class ConversationHelpersTests
     public void Conversation_Clear_ByRemovingTurns()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         conversation.SetState("key1", "value1");
 
         for (int i = 0; i < 3; i++)
@@ -165,7 +165,7 @@ public class ConversationHelpersTests
         }
 
         // Act - Clear by creating new conversation (since we don't have Clear method)
-        conversation = new Conversation();
+        conversation = new Model.Conversation();
 
         // Assert
         Assert.Empty(conversation.Turns);
@@ -248,7 +248,7 @@ public class ConversationHelpersTests
         // Similar to the ConversationContext example but using our architecture
 
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var registry = new ToolRegistry();
 
         // Act - Build conversation fluently
@@ -296,7 +296,7 @@ public class ConversationHelpersTests
         // Similar to the FunctionCalling_ShouldWork example but using our architecture
 
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var registry = new ToolRegistry();
 
         // Register a weather tool (using ToolDeclaration)
@@ -379,7 +379,7 @@ public class ConversationHelpersTests
     public void ConversationStats_WithFullConversation_ShouldCountEverything()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // System message
         conversation.AddTurn(new Turn

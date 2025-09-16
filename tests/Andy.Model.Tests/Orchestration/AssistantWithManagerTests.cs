@@ -186,7 +186,7 @@ public class AssistantWithManagerTests
         // Assert
         Assert.NotNull(llm.LastRequest);
         // Should only have window size messages in request
-        Assert.True(llm.LastRequest.Messages.Length <= 3); // Window + new message
+        Assert.True(llm.LastRequest.Messages.Count <= 3); // Window + new message
     }
 
     [Fact]

@@ -13,7 +13,7 @@ public class ApiConvenienceTests
     {
         // This test demonstrates how simple conversation creation should be
         // Arrange & Act
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // Add messages in a natural way
         var systemTurn = CreateSystemTurn("You are a helpful assistant");
@@ -33,7 +33,7 @@ public class ApiConvenienceTests
     public void ConversationHistory_ShouldMaintainChronology()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         var turns = new List<string>();
 
         // Act - Build conversation with specific order
@@ -51,7 +51,7 @@ public class ApiConvenienceTests
 
         // Assert - Verify chronological order
         var messages = conversation.ToChronoMessages().ToList();
-        Assert.Equal(10, messages.Count); // 5 questions + 5 answers
+        Assert.Equal(10, messages.Count()); // 5 questions + 5 answers
 
         for (int i = 0; i < turns.Count; i++)
         {
@@ -114,7 +114,7 @@ public class ApiConvenienceTests
             }
         };
 
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
         conversation.AddTurn(new Turn { AssistantMessage = message });
 
         // Act

@@ -12,7 +12,7 @@ public class IntegrationTests
     public void Conversation_StateManagement_WorksCorrectly()
     {
         // Arrange
-        var conversation = new Conversation();
+        var conversation = new Model.Conversation();
 
         // Act
         conversation.SetState("user_id", "12345");
