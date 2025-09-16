@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>andy-model</PackageId>
+    <Title>Andy Model</Title>
+    <Authors>Rivoli.AI</Authors>
+    <Company>Rivoli.AI</Company>
+    <Copyright>Copyright © 2025 Rivoli AI</Copyright>
+    <PackageProjectUrl>https://github.com/rivoli-ai/andy-model</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/rivoli-ai/andy-model</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Description>Andy.Model — core agentic interactions between an assistant and a model</Description>
+    <PackageIcon>andy_context_icon.png</PackageIcon>
+    <PackageTags>ai;llm;conversation;context;tools</PackageTags>
+    <RepositoryUrl>https://github.com/your-org/andy-model</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../assets/andy_model_icon.png" Pack="true" PackagePath="/" Visible="false" Condition="Exists('../../assets/andy_model_icon.png')" />
+  </ItemGroup>
+
+</Project>
