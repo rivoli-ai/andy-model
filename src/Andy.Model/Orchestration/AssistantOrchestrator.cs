@@ -14,9 +14,9 @@ public sealed class AssistantOrchestrator
 {
     private readonly Conversation _conversation;
     private readonly ToolRegistry _tools;
-    private readonly ILlmClient _llm;
+    private readonly ILlmProvider _llm;
 
-    public AssistantOrchestrator(Conversation conversation, ToolRegistry tools, ILlmClient llm)
+    public AssistantOrchestrator(Conversation conversation, ToolRegistry tools, ILlmProvider llm)
     {
         _conversation = conversation;
         _tools = tools;

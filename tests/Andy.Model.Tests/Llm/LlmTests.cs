@@ -1,3 +1,4 @@
+using Andy.Model.Examples;
 using Andy.Model.Llm;
 using Andy.Model.Model;
 using Andy.Model.Tooling;
@@ -236,5 +237,105 @@ public class LlmTests
 
         // Assert
         Assert.False(response.HasToolCalls);
+    }
+
+    [Fact]
+    public void ModelInfo_ShouldInitializeWithDefaults()
+    {
+        // Act
+        var model = new ModelInfo
+        {
+            Id = "model-1"
+        };
+
+        // Assert
+        Assert.Equal("model-1", model.Id);
+        Assert.Null(model.Name);
+        Assert.Null(model.Description);
+        Assert.Null(model.MaxTokens);
+        Assert.False(model.SupportsFunctions);
+        Assert.True(model.SupportsStreaming); // Default is true
+        Assert.Null(model.UpdatedAt);
+        Assert.NotNull(model.Metadata);
+        Assert.Empty(model.Metadata);
+    }
+
+    [Fact]
+    public void ModelInfo_ShouldAcceptAllProperties()
+    {
+        // Arrange
+        var updateTime = DateTimeOffset.UtcNow;
+        var metadata = new Dictionary<string, object>
+        {
+            ["vendor"] = "OpenAI",
+            ["version"] = "1.0"
+        };
+
+        // Act
+        var model = new ModelInfo
+        {
+            Id = "gpt-4",
+            Name = "GPT-4",
+            Description = "Advanced language model",
+            MaxTokens = 8192,
+            SupportsFunctions = true,
+            SupportsStreaming = true,
+            UpdatedAt = updateTime,
+            Metadata = metadata
+        };
+
+        // Assert
+        Assert.Equal("gpt-4", model.Id);
+        Assert.Equal("GPT-4", model.Name);
+        Assert.Equal("Advanced language model", model.Description);
+        Assert.Equal(8192, model.MaxTokens);
+        Assert.True(model.SupportsFunctions);
+        Assert.True(model.SupportsStreaming);
+        Assert.Equal(updateTime, model.UpdatedAt);
+        Assert.Equal(2, model.Metadata.Count);
+        Assert.Equal("OpenAI", model.Metadata["vendor"]);
+    }
+
+    [Fact]
+    public async Task DemoProvider_IsAvailable_ShouldReturnTrue()
+    {
+        // Arrange
+        var provider = new DemoLlmClient();
+
+        // Act
+        var isAvailable = await provider.IsAvailableAsync();
+
+        // Assert
+        Assert.True(isAvailable);
+    }
+
+    [Fact]
+    public async Task DemoProvider_ListModels_ShouldReturnDemoModel()
+    {
+        // Arrange
+        var provider = new DemoLlmClient();
+
+        // Act
+        var models = await provider.ListModelsAsync();
+
+        // Assert
+        Assert.NotNull(models);
+        var modelList = models.ToList();
+        Assert.Single(modelList);
+        Assert.Equal("demo-model-1", modelList[0].Id);
+        Assert.Equal("Demo Model", modelList[0].Name);
+    }
+
+    [Fact]
+    public void DemoProvider_Name_ShouldReturnProviderName()
+    {
+        // Arrange
+        var provider = new DemoLlmClient();
+
+        // Act
+        var name = provider.Name;
+
+        // Assert
+        Assert.Equal("Demo Provider", name);
     }
 }

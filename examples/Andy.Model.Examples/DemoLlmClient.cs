@@ -6,13 +6,15 @@ using Andy.Model.Utils;
 namespace Andy.Model.Examples;
 
 /// <summary>
-/// A minimal demo LLM client that interprets the user's last message.
+/// A minimal demo LLM provider that interprets the user's last message.
 /// - If it contains the word "calc", it emits a tool call to Calculator.
 /// - Otherwise, it echoes a generic assistant message.
 /// This lets you exercise the orchestration without any vendor SDKs.
 /// </summary>
-public sealed class DemoLlmClient : ILlmClient
+public sealed class DemoLlmClient : ILlmProvider
 {
+    public string Name => "Demo Provider";
+
     public Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken cancellationToken = default)
     {
         var context = request.Messages;
@@ -75,5 +77,31 @@ public sealed class DemoLlmClient : ILlmClient
     {
         if (string.IsNullOrEmpty(s) || s.Length <= max) return s;
         return s.Substring(0, Math.Max(0, max - 3)) + "...";
+    }
+
+    public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
+    {
+        // Demo provider is always available
+        return Task.FromResult(true);
+    }
+
+    public Task<IEnumerable<ModelInfo>> ListModelsAsync(CancellationToken cancellationToken = default)
+    {
+        // Return a single demo model
+        var models = new[]
+        {
+            new ModelInfo
+            {
+                Id = "demo-model-1",
+                Name = "Demo Model",
+                Description = "A demonstration model for testing",
+                MaxTokens = 4096,
+                SupportsFunctions = true,
+                SupportsStreaming = true,
+                UpdatedAt = DateTimeOffset.UtcNow
+            }
+        };
+
+        return Task.FromResult<IEnumerable<ModelInfo>>(models);
     }
 }
