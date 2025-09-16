@@ -426,7 +426,7 @@ public sealed class AssistantWithManager
                 {
                     Role = Role.Tool,
                     Content = notFound.ResultJson,
-                    ToolResults = new List<ToolResult> { notFound },
+                    ToolResults = new List<ToolResult> {notFound},
                     Metadata = new Dictionary<string, object>
                     {
                         ["tool_name"] = call.Name,
@@ -434,6 +434,7 @@ public sealed class AssistantWithManager
                         ["tool_not_found"] = true
                     }
                 };
+                
                 turn.ToolMessages.Add(toolMsg);
             }
         }
