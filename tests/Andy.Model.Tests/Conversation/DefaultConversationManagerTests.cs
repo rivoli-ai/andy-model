@@ -123,6 +123,7 @@ public class DefaultConversationManagerTests
     public void ExtractMessagesForNextTurn_FiltersOldMessages()
     {
         // Arrange
+        var now = DateTimeOffset.UtcNow;
         var options = new ConversationManagerOptions
         {
             MaxMessageAge = TimeSpan.FromHours(1),
@@ -130,26 +131,26 @@ public class DefaultConversationManagerTests
         };
         var manager = new DefaultConversationManager(options);
 
-        // Add old message
+        // Add old message (2 hours old - should be filtered out)
         var oldTurn = new Turn
         {
             UserOrSystemMessage = new Message
             {
                 Role = Role.User,
                 Content = "Old message",
-                Timestamp = DateTimeOffset.UtcNow.AddHours(-2)
+                Timestamp = now.AddHours(-2)
             }
         };
         manager.AddTurn(oldTurn);
 
-        // Add recent message
+        // Add recent message (30 minutes old - should be included)
         var recentTurn = new Turn
         {
             UserOrSystemMessage = new Message
             {
                 Role = Role.User,
                 Content = "Recent message",
-                Timestamp = DateTimeOffset.UtcNow.AddMinutes(-30)
+                Timestamp = now.AddMinutes(-30)
             }
         };
         manager.AddTurn(recentTurn);
@@ -157,9 +158,9 @@ public class DefaultConversationManagerTests
         // Act
         var messages = manager.ExtractMessagesForNextTurn().ToList();
 
-        // Assert
+        // Assert - only recent message should remain after filtering
         Assert.Single(messages);
-        Assert.Contains("Recent message", messages[0].Content);
+        Assert.Equal("Recent message", messages[0].Content);
     }
 
     [Fact]
@@ -278,6 +279,7 @@ public class DefaultConversationManagerTests
         var options = new ConversationManagerOptions
         {
             CompactionThreshold = 2,
+            MaxRecentMessages = 2,  // Ensure we can compact with 3 turns
             CompressionStrategy = CompressionStrategy.Summary
         };
         var manager = new DefaultConversationManager(options);

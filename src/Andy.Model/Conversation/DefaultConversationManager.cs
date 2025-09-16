@@ -42,13 +42,14 @@ public class DefaultConversationManager : IConversationManager
     {
         var allMessages = _conversation.ToChronoMessages().ToList();
 
-        if (_options.CompressionStrategy == CompressionStrategy.None)
+        // Always apply filters first (age, role filters)
+        var messages = ApplyFilters(allMessages);
+
+        if (_options.CompressionStrategy != CompressionStrategy.None)
         {
-            return allMessages;
+            messages = ApplyCompression(messages);
         }
 
-        var messages = ApplyFilters(allMessages);
-        messages = ApplyCompression(messages);
         messages = ApplyTokenLimit(messages);
 
         return messages;

@@ -78,7 +78,8 @@ public class SlidingWindowConversationManagerTests
         Assert.Equal(3, messages.Count); // System + window (2)
         Assert.Equal(Role.System, messages[0].Role);
         Assert.Contains("System prompt", messages[0].Content);
-        Assert.Contains("Message 5", messages[1].Content); // Last message in window
+        Assert.Contains("Message 4", messages[1].Content); // Second to last message
+        Assert.Contains("Message 5", messages[2].Content); // Last message in window
     }
 
     [Fact]

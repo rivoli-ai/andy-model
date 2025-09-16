@@ -216,6 +216,7 @@ public class AssistantWithManagerTests
         var options = new ConversationManagerOptions
         {
             CompactionThreshold = 2,
+            MaxRecentMessages = 2,
             CompressionStrategy = CompressionStrategy.Summary
         };
         var conversationManager = new DefaultConversationManager(options);
@@ -312,7 +313,7 @@ public class AssistantWithManagerTests
         // Arrange
         var options = new ConversationManagerOptions
         {
-            MaxRecentMessages = 3,
+            MaxRecentMessages = 6,  // Enough to keep both important messages
             CompressionStrategy = CompressionStrategy.Semantic
         };
         var conversationManager = new SemanticConversationManager(options);

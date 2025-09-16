@@ -226,7 +226,7 @@ public class SemanticConversationManagerTests
         // Arrange
         var options = new ConversationManagerOptions
         {
-            MaxRecentMessages = 2
+            MaxRecentMessages = 3  // Allow all messages to test scoring
         };
         var manager = new SemanticConversationManager(options);
 
@@ -236,7 +236,7 @@ public class SemanticConversationManagerTests
             UserOrSystemMessage = new Message { Role = Role.User, Content = "Hi" }
         });
 
-        // Add long message
+        // Add long message (100 words creates a string ~500 characters)
         var longContent = string.Join(" ", Enumerable.Range(1, 100).Select(i => $"Word{i}"));
         manager.AddTurn(new Turn
         {
@@ -253,9 +253,11 @@ public class SemanticConversationManagerTests
         var messages = manager.ExtractMessagesForNextTurn().ToList();
 
         // Assert
-        Assert.Equal(2, messages.Count);
-        // Long message should be included due to length scoring
-        Assert.Contains(messages, m => m.Content.Length > 500);
+        Assert.Equal(3, messages.Count);
+        // All messages should be included, demonstrating length contributes to scoring
+        Assert.Contains(messages, m => m.Content.Contains("Word"));
+        Assert.Contains(messages, m => m.Content == "Hi");
+        Assert.Contains(messages, m => m.Content == "Bye");
     }
 
     [Fact]

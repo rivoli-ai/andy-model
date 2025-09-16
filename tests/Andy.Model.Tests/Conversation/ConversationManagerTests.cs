@@ -127,6 +127,7 @@ public class ConversationManagerTests
         var options = new ConversationManagerOptions
         {
             CompactionThreshold = 2,
+            MaxRecentMessages = 2,  // Ensure we can compact with 3 turns
             CompressionStrategy = CompressionStrategy.Summary
         };
         var manager = new DefaultConversationManager(options);
