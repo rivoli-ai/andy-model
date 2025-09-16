@@ -15,6 +15,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{77
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andy.Model.Examples", "examples\Andy.Model.Examples\Andy.Model.Examples.csproj", "{AADB722B-4119-47CF-9E79-0E8D3DADA319}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Llm7IoClient", "examples\Llm7IoClient\Llm7IoClient.csproj", "{3B07CB99-6E8E-4886-9805-6C0DEA13992C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,10 +38,15 @@ Global
 		{AADB722B-4119-47CF-9E79-0E8D3DADA319}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AADB722B-4119-47CF-9E79-0E8D3DADA319}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AADB722B-4119-47CF-9E79-0E8D3DADA319}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B07CB99-6E8E-4886-9805-6C0DEA13992C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B07CB99-6E8E-4886-9805-6C0DEA13992C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B07CB99-6E8E-4886-9805-6C0DEA13992C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B07CB99-6E8E-4886-9805-6C0DEA13992C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{43A673E7-17ED-46BB-82A9-131BD4EC3501} = {17A63030-54E3-4F73-A265-3445F358594B}
 		{7247847F-F416-4889-BBAC-8C2B7BBCB9F8} = {F4F64816-2EDF-4228-9CEF-33880618C229}
 		{AADB722B-4119-47CF-9E79-0E8D3DADA319} = {7727E66C-09E1-4921-8ECB-E169BA139FCF}
+		{3B07CB99-6E8E-4886-9805-6C0DEA13992C} = {7727E66C-09E1-4921-8ECB-E169BA139FCF}
 	EndGlobalSection
 EndGlobal
