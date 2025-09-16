@@ -13,7 +13,7 @@ public static class ConversationExtensions
     /// <summary>
     /// Get conversation statistics.
     /// </summary>
-    public static ConversationStats GetStats(this Conversation conversation)
+    public static ConversationStats GetStats(this Model.Conversation conversation)
     {
         var messages = conversation.ToChronoMessages().ToArray();
         
@@ -36,7 +36,7 @@ public static class ConversationExtensions
     /// <summary>
     /// Get a summary of the conversation.
     /// </summary>
-    public static string GetSummary(this Conversation conversation, int maxLength = 500)
+    public static string GetSummary(this Model.Conversation conversation, int maxLength = 500)
     {
         var messages = conversation.ToChronoMessages().ToArray();
         var summary = new System.Text.StringBuilder();
@@ -60,7 +60,7 @@ public static class ConversationExtensions
     /// <summary>
     /// Export conversation to JSON.
     /// </summary>
-    public static string ToJson(this Conversation conversation)
+    public static string ToJson(this Model.Conversation conversation)
     {
         return JsonSerializer.Serialize(conversation, JsonOptions.Default);
     }
@@ -68,9 +68,9 @@ public static class ConversationExtensions
     /// <summary>
     /// Import conversation from JSON.
     /// </summary>
-    public static Conversation FromJson(string json)
+    public static Model.Conversation FromJson(string json)
     {
-        return JsonSerializer.Deserialize<Conversation>(json, JsonOptions.Default) 
+        return JsonSerializer.Deserialize<Model.Conversation>(json, JsonOptions.Default) 
                ?? throw new InvalidOperationException("Failed to deserialize conversation");
     }
 }

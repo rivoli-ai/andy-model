@@ -13,7 +13,7 @@ namespace Andy.Model.Orchestration;
 /// </summary>
 public sealed class Assistant
 {
-    private readonly Conversation _conversation;
+    private readonly Model.Conversation _conversation;
     private readonly ToolRegistry _tools;
     private readonly ILlmProvider _llm;
 
@@ -29,7 +29,7 @@ public sealed class Assistant
     public event EventHandler<ToolValidationFailedEventArgs>? ToolValidationFailed;
     public event EventHandler<ErrorOccurredEventArgs>? ErrorOccurred;
 
-    public Assistant(Conversation conversation, ToolRegistry tools, ILlmProvider llm)
+    public Assistant(Model.Conversation conversation, ToolRegistry tools, ILlmProvider llm)
     {
         _conversation = conversation;
         _tools = tools;
