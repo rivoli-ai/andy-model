@@ -13,16 +13,16 @@
     <RepositoryUrl>https://github.com/rivoli-ai/andy-model</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Description>Andy.Model — core agentic interactions between an assistant and a model</Description>
-    <PackageIcon>andy_context_icon.png</PackageIcon>
+    <PackageIcon>andy_model_icon.png</PackageIcon>
     <PackageTags>ai;llm;conversation;context;tools</PackageTags>
-    <RepositoryUrl>https://github.com/your-org/andy-model</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="../../assets/andy_model_icon.png" Pack="true" PackagePath="/" Visible="false" Condition="Exists('../../assets/andy_model_icon.png')" />
+    <None Include="../../assets/andy_model_icon.png" Pack="true" PackagePath="/" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>

@@ -316,15 +316,18 @@ public sealed class Assistant
                 toolCalls.AddRange(message.ToolCalls);
             }
 
-            // Fire streaming token received event
-            StreamingTokenReceived?.Invoke(this, new StreamingTokenReceivedEventArgs
+            // Fire streaming token received event if message is not null
+            if (message != null)
             {
-                ConversationId = _conversation.Id,
-                Delta = message,
-                IsComplete = response.IsComplete
-            });
+                StreamingTokenReceived?.Invoke(this, new StreamingTokenReceivedEventArgs
+                {
+                    ConversationId = _conversation.Id,
+                    Delta = message,
+                    IsComplete = response.IsComplete
+                });
 
-            yield return message;
+                yield return message;
+            }
         }
 
         // 3) If tool calls present, execute them and stream final response.

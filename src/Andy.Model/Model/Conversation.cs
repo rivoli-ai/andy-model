@@ -7,7 +7,6 @@ public sealed class Conversation
 {
     private readonly List<Turn> _turns = new();
     private readonly Dictionary<string, object> _state = new();
-    private int _lastTurnCount;
 
     public IReadOnlyList<Turn> Turns => _turns;
 
