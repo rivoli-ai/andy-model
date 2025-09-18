@@ -17,4 +17,15 @@ public enum Role
     Tool
 }
 
+/// <summary>
+/// Type alias for Role enum (backward compatibility).
+/// </summary>
+public static class MessageRole
+{
+    public const Role System = Role.System;
+    public const Role User = Role.User;
+    public const Role Assistant = Role.Assistant;
+    public const Role Tool = Role.Tool;
+}
+
 #endregion

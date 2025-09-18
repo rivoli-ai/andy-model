@@ -25,5 +25,37 @@ public sealed class Message
     // Message ID for referencing
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
 
+    /// <summary>
+    /// Parts-based message content (for backward compatibility).
+    /// Returns TextPart for Content, ToolCallPart for ToolCalls, etc.
+    /// </summary>
+    public List<MessagePart> Parts
+    {
+        get
+        {
+            var parts = new List<MessagePart>();
+
+            // Add text content if present
+            if (!string.IsNullOrEmpty(Content))
+            {
+                parts.Add(new TextPart(Content));
+            }
+
+            // Add tool calls if present
+            foreach (var toolCall in ToolCalls)
+            {
+                parts.Add(new ToolCallPart(toolCall));
+            }
+
+            // Add tool results if present
+            foreach (var toolResult in ToolResults)
+            {
+                parts.Add(new ToolResponsePart(toolResult));
+            }
+
+            return parts;
+        }
+    }
+
     public override string ToString() => $"[{Role}] {Content}";
 }

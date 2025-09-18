@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PackageId>andy-model</PackageId>
+    <PackageId>Andy.Model</PackageId>
     <Title>Andy Model</Title>
     <Authors>Rivoli.AI</Authors>
     <Company>Rivoli.AI</Company>

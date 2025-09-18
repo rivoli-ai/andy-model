@@ -22,4 +22,31 @@ public sealed class LlmRequest
     /// Optional configuration for the request.
     /// </summary>
     public LlmClientConfig? Config { get; init; }
+
+    /// <summary>
+    /// System prompt to prepend to the conversation.
+    /// </summary>
+    public string? SystemPrompt { get; init; }
+
+    // Convenience properties that delegate to Config for backward compatibility
+
+    /// <summary>
+    /// Model to use for completion (delegates to Config.Model).
+    /// </summary>
+    public string Model => Config?.Model ?? string.Empty;
+
+    /// <summary>
+    /// Temperature for sampling (delegates to Config.Temperature).
+    /// </summary>
+    public decimal Temperature => Config?.Temperature ?? 0.7m;
+
+    /// <summary>
+    /// Maximum tokens to generate (delegates to Config.MaxTokens).
+    /// </summary>
+    public int MaxTokens => Config?.MaxTokens ?? 4000;
+
+    /// <summary>
+    /// Top-p sampling parameter (delegates to Config.TopP).
+    /// </summary>
+    public decimal TopP => Config?.TopP ?? 1.0m;
 }

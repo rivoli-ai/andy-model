@@ -44,4 +44,36 @@ public class ModelInfo
     /// Additional metadata about the model.
     /// </summary>
     public Dictionary<string, object> Metadata { get; init; } = new();
+
+    // Additional properties for backward compatibility
+
+    /// <summary>
+    /// The provider of this model (e.g., "OpenAI", "Azure", "Ollama").
+    /// </summary>
+    public string? Provider { get; init; }
+
+    /// <summary>
+    /// Model family (e.g., "gpt-4", "claude", "llama").
+    /// </summary>
+    public string? Family { get; init; }
+
+    /// <summary>
+    /// Parameter size (e.g., "7B", "13B", "175B").
+    /// </summary>
+    public string? ParameterSize { get; init; }
+
+    /// <summary>
+    /// Whether the model supports vision/image inputs.
+    /// </summary>
+    public bool SupportsVision { get; init; }
+
+    /// <summary>
+    /// Date when the model was created (alias for UpdatedAt).
+    /// </summary>
+    public DateTimeOffset? Created => UpdatedAt;
+
+    /// <summary>
+    /// Whether this is a fine-tuned model.
+    /// </summary>
+    public bool IsFineTuned { get; init; }
 }

@@ -13,6 +13,15 @@ public sealed class ToolCall
     // Raw JSON arguments; keeps fidelity across models.
     public string ArgumentsJson { get; init; } = "{}";
 
+    /// <summary>
+    /// Arguments as string (alias for ArgumentsJson for backward compatibility).
+    /// </summary>
+    public string Arguments
+    {
+        get => ArgumentsJson;
+        init => ArgumentsJson = value;
+    }
+
     public JsonElement ArgumentsAsJsonElement()
     {
         return JsonDocument.Parse(string.IsNullOrWhiteSpace(ArgumentsJson) ? "{}" : ArgumentsJson).RootElement.Clone();
