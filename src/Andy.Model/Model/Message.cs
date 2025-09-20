@@ -25,6 +25,9 @@ public sealed class Message
     // Message ID for referencing
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
 
+    // Tool call ID for tool response messages (when Role = Tool)
+    public string? ToolCallId { get; init; }
+
     /// <summary>
     /// Parts-based message content (for backward compatibility).
     /// Returns TextPart for Content, ToolCallPart for ToolCalls, etc.
