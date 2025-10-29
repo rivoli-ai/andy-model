@@ -8,7 +8,7 @@ namespace Andy.Model.Llm;
 public sealed class LlmClientConfig
 {
     public string Model { get; init; } = string.Empty;
-    public decimal Temperature { get; init; } = 0.7m;
+    public decimal? Temperature { get; init; }
     public int MaxTokens { get; init; } = 4000;
     public decimal TopP { get; init; } = 1.0m;
 }

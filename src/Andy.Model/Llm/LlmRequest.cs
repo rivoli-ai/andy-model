@@ -37,8 +37,9 @@ public sealed class LlmRequest
 
     /// <summary>
     /// Temperature for sampling (delegates to Config.Temperature).
+    /// Returns null if not configured, allowing models to use their own defaults.
     /// </summary>
-    public decimal Temperature => Config?.Temperature ?? 0.7m;
+    public decimal? Temperature => Config?.Temperature;
 
     /// <summary>
     /// Maximum tokens to generate (delegates to Config.MaxTokens).
