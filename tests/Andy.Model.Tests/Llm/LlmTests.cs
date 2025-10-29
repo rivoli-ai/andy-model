@@ -16,7 +16,7 @@ public class LlmTests
 
         // Assert
         Assert.Equal(string.Empty, config.Model);
-        Assert.Equal(0.7m, config.Temperature);
+        Assert.Null(config.Temperature); // Temperature now defaults to null
         Assert.Equal(4000, config.MaxTokens);
         Assert.Equal(1.0m, config.TopP);
     }
