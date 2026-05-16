@@ -203,7 +203,7 @@ await foreach (var message in assistant.RunTurnStreamAsync("Tell me a story"))
 Implement `ILlmProvider` to integrate new LLM services:
 
 ```csharp
-public interface ILlmProvider : IDisposable
+public interface ILlmProvider
 {
     string Name { get; }
     Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken cancellationToken = default);
