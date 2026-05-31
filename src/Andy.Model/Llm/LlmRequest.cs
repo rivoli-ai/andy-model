@@ -28,6 +28,15 @@ public sealed class LlmRequest
     /// </summary>
     public string? SystemPrompt { get; init; }
 
+    /// <summary>
+    /// When true, providers that support explicit prompt-caching breakpoints
+    /// (Anthropic/Claude, including via OpenRouter) attach a
+    /// <c>cache_control: {"type":"ephemeral"}</c> breakpoint to the system
+    /// prompt so the stable prefix is cached. Default false leaves behavior
+    /// unchanged. Providers that auto-cache (OpenAI/DeepSeek) ignore this flag.
+    /// </summary>
+    public bool CacheSystemPrompt { get; init; }
+
     // Convenience properties that delegate to Config for backward compatibility
 
     /// <summary>

@@ -29,6 +29,15 @@ public sealed class Message
     public string? ToolCallId { get; init; }
 
     /// <summary>
+    /// Optional prompt-caching breakpoint. When non-null, providers that
+    /// support explicit cache breakpoints (Anthropic/Claude) mark this
+    /// message as the end of a cacheable prefix. Default null = no breakpoint
+    /// (behavior unchanged). Providers that auto-cache (OpenAI/DeepSeek)
+    /// ignore this marker.
+    /// </summary>
+    public CacheControl? CacheControl { get; init; }
+
+    /// <summary>
     /// Parts-based message content (for backward compatibility).
     /// Returns TextPart for Content, ToolCallPart for ToolCalls, etc.
     /// </summary>
