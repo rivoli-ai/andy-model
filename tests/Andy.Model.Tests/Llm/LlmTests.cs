@@ -41,6 +41,37 @@ public class LlmTests
     }
 
     [Fact]
+    public void LlmRequest_ExtraBody_DefaultsToNull()
+    {
+        var request = new LlmRequest { Messages = Array.Empty<Message>() };
+        Assert.Null(request.ExtraBody);
+    }
+
+    [Fact]
+    public void LlmRequest_ExtraBody_RoundTripsArbitraryProviderOptions()
+    {
+        // A caller supplies OpenRouter-style provider routing + a fallback model list.
+        var request = new LlmRequest
+        {
+            Messages = Array.Empty<Message>(),
+            ExtraBody = new Dictionary<string, object?>
+            {
+                ["provider"] = new Dictionary<string, object?>
+                {
+                    ["order"] = new[] { "deepinfra/turbo" },
+                    ["allow_fallbacks"] = false
+                },
+                ["models"] = new[] { "deepseek/deepseek-r1", "openai/gpt-5" }
+            }
+        };
+
+        Assert.NotNull(request.ExtraBody);
+        var provider = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(request.ExtraBody!["provider"]);
+        Assert.Equal(false, provider["allow_fallbacks"]);
+        Assert.Equal(new[] { "deepseek/deepseek-r1", "openai/gpt-5" }, Assert.IsType<string[]>(request.ExtraBody!["models"]));
+    }
+
+    [Fact]
     public void LlmUsage_ShouldStoreTokenCounts()
     {
         // Arrange & Act

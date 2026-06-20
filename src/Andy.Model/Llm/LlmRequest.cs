@@ -37,6 +37,15 @@ public sealed class LlmRequest
     /// </summary>
     public bool CacheSystemPrompt { get; init; }
 
+    /// <summary>
+    /// Provider-specific request-body fields, merged verbatim into the outgoing request by providers
+    /// that support a passthrough (e.g. OpenRouter's <c>provider</c> routing, <c>models</c> fallback
+    /// array, <c>reasoning</c>, <c>transforms</c>, <c>response_format</c>). Values may be nested
+    /// dictionaries/arrays and are serialized as-is. Providers that don't understand a key ignore it;
+    /// keys that collide with fields the provider already sets are resolved provider-side.
+    /// </summary>
+    public IReadOnlyDictionary<string, object?>? ExtraBody { get; init; }
+
     // Convenience properties that delegate to Config for backward compatibility
 
     /// <summary>
