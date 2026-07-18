@@ -288,4 +288,147 @@ public class ToolCallValidatorTests
         Assert.True(result.IsValid);
         Assert.Empty(result.Errors);
     }
+
+    // ---- #10: JSON Schema validation ----
+
+    private static ToolDeclaration WeatherSchema() => new()
+    {
+        Name = "weather",
+        Description = "Weather lookup",
+        Parameters = new Dictionary<string, object>
+        {
+            ["type"] = "object",
+            ["properties"] = new Dictionary<string, object>
+            {
+                ["location"] = new Dictionary<string, object> { ["type"] = "string" },
+                ["units"] = new Dictionary<string, object>
+                {
+                    ["type"] = "string",
+                    ["enum"] = new[] { "celsius", "fahrenheit" }
+                },
+                ["days"] = new Dictionary<string, object> { ["type"] = "integer" }
+            },
+            ["required"] = new[] { "location" },
+            ["additionalProperties"] = false
+        }
+    };
+
+    [Fact]
+    public void Validate_MissingRequiredProperty_Fails()
+    {
+        var call = new ToolCall { Name = "weather", ArgumentsJson = @"{""units"":""celsius""}" };
+        var result = ToolCallValidator.Validate(call, WeatherSchema());
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("location"));
+    }
+
+    [Fact]
+    public void Validate_WrongType_Fails()
+    {
+        var call = new ToolCall { Name = "weather", ArgumentsJson = @"{""location"":123}" };
+        var result = ToolCallValidator.Validate(call, WeatherSchema());
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("location") && e.Contains("string"));
+    }
+
+    [Fact]
+    public void Validate_InvalidEnumValue_Fails()
+    {
+        var call = new ToolCall { Name = "weather", ArgumentsJson = @"{""location"":""NYC"",""units"":""kelvin""}" };
+        var result = ToolCallValidator.Validate(call, WeatherSchema());
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("units"));
+    }
+
+    [Fact]
+    public void Validate_NonIntegerForInteger_Fails()
+    {
+        var call = new ToolCall { Name = "weather", ArgumentsJson = @"{""location"":""NYC"",""days"":2.5}" };
+        var result = ToolCallValidator.Validate(call, WeatherSchema());
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("days"));
+    }
+
+    [Fact]
+    public void Validate_AdditionalPropertyRejected_Fails()
+    {
+        var call = new ToolCall { Name = "weather", ArgumentsJson = @"{""location"":""NYC"",""bogus"":1}" };
+        var result = ToolCallValidator.Validate(call, WeatherSchema());
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("bogus"));
+    }
+
+    [Fact]
+    public void Validate_ValidAgainstSchema_Succeeds()
+    {
+        var call = new ToolCall { Name = "weather", ArgumentsJson = @"{""location"":""NYC"",""units"":""celsius"",""days"":3}" };
+        var result = ToolCallValidator.Validate(call, WeatherSchema());
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void Validate_NestedSchema_ReportsStablePath()
+    {
+        var declaration = new ToolDeclaration
+        {
+            Name = "search",
+            Description = "search",
+            Parameters = new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object>
+                {
+                    ["filters"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new Dictionary<string, object>
+                        {
+                            ["limit"] = new Dictionary<string, object> { ["type"] = "integer" }
+                        }
+                    }
+                }
+            }
+        };
+
+        var call = new ToolCall { Name = "search", ArgumentsJson = @"{""filters"":{""limit"":""ten""}}" };
+        var result = ToolCallValidator.Validate(call, declaration);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("/filters/limit"));
+    }
+
+    [Fact]
+    public void Validate_ArrayItems_ValidatesEachElement()
+    {
+        var declaration = new ToolDeclaration
+        {
+            Name = "batch",
+            Description = "batch",
+            Parameters = new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object>
+                {
+                    ["ids"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object> { ["type"] = "integer" }
+                    }
+                }
+            }
+        };
+
+        var call = new ToolCall { Name = "batch", ArgumentsJson = @"{""ids"":[1,2,""three""]}" };
+        var result = ToolCallValidator.Validate(call, declaration);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("/ids/2"));
+    }
 }

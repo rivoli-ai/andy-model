@@ -313,6 +313,58 @@ public class AssistantOrchestrationTests
         Assert.Equal(1, completed.ToolRounds);
     }
 
+    // ---- #10: schema validation gates execution ----
+
+    [Theory]
+    [MemberData(nameof(Kinds))]
+    public async Task InvalidToolCall_IsRejected_AndNeverInvokesTool(string kind)
+    {
+        var llm = new ScriptedLlmProvider()
+            .EnqueueToolCall("strict", "s1", new { }) // missing required 'value'
+            .EnqueueText("recovered");
+        var tools = new ToolRegistry();
+        var strict = new SchemaTool();
+        tools.Register(strict);
+        var harness = AssistantHarness.Create(kind, tools, llm);
+
+        var final = await harness.RunTurnAsync("go", CancellationToken.None);
+
+        Assert.Equal("recovered", final.Content);
+        Assert.Equal(0, strict.Invocations); // never invoked
+        Assert.Single(harness.ValidationFailures);
+
+        var toolMsg = harness.Conversation.ToChronoMessages().Single(m => m.Role == Role.Tool);
+        Assert.True(toolMsg.ToolResults[0].IsError);
+        Assert.Contains("validation_failed", toolMsg.ToolResults[0].ResultJson);
+        Assert.Equal(1, harness.TurnCompletions.Single().ToolCallsValidationRejected);
+    }
+
+    private sealed class SchemaTool : ITool
+    {
+        public int Invocations { get; private set; }
+
+        public ToolDeclaration Definition => new()
+        {
+            Name = "strict",
+            Description = "requires value",
+            Parameters = new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object>
+                {
+                    ["value"] = new Dictionary<string, object> { ["type"] = "string" }
+                },
+                ["required"] = new[] { "value" }
+            }
+        };
+
+        public Task<ToolResult> ExecuteAsync(ToolCall call, CancellationToken ct = default)
+        {
+            Invocations++;
+            return Task.FromResult(ToolResult.FromObject(call.Id, "strict", new { ok = true }));
+        }
+    }
+
     // ---- #9: streaming ----
 
     [Theory]
