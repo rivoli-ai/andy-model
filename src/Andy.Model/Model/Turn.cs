@@ -62,19 +62,18 @@ public sealed class Turn
     /// </summary>
     public IReadOnlyList<Message> Messages => _messages;
 
-    /// <summary>Append an assistant message (text and/or tool calls) to the ordered sequence.</summary>
-    public Turn AddAssistantMessage(Message message)
+    /// <summary>Append any message to the ordered response sequence, preserving order.</summary>
+    public Turn AddMessage(Message message)
     {
         _messages.Add(message);
         return this;
     }
 
+    /// <summary>Append an assistant message (text and/or tool calls) to the ordered sequence.</summary>
+    public Turn AddAssistantMessage(Message message) => AddMessage(message);
+
     /// <summary>Append a tool-result message (Role=Tool) to the ordered sequence.</summary>
-    public Turn AddToolMessage(Message message)
-    {
-        _messages.Add(message);
-        return this;
-    }
+    public Turn AddToolMessage(Message message) => AddMessage(message);
 
     /// <summary>
     /// The final assistant message of the turn regardless of representation, i.e. the

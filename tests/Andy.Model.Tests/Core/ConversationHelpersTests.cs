@@ -81,12 +81,12 @@ public class ConversationHelpersTests
         var json = conversation.ToJson();
         var deserialized = ConversationExtensions.FromJson(json);
 
-        // Assert
+        // Assert - serialization is now lossless: id and turn history are restored.
         Assert.NotNull(json);
         Assert.NotNull(deserialized);
-        // Note: Private readonly fields may not deserialize properly
-        // At minimum, the ID should be preserved
-        Assert.NotNull(deserialized.Id);
+        Assert.Equal(conversation.Id, deserialized.Id);
+        Assert.Single(deserialized.Turns);
+        Assert.Equal("Test message", deserialized.ToChronoMessages().First().Content);
     }
 
     [Fact]

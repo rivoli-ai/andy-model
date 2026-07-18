@@ -61,4 +61,21 @@ public sealed class Conversation
     {
         _state.Clear();
     }
+
+    /// <summary>
+    /// Read-only snapshot of all state entries. Intended for serialization/inspection.
+    /// </summary>
+    public IReadOnlyDictionary<string, object> GetStateSnapshot() => new Dictionary<string, object>(_state);
+
+    /// <summary>
+    /// Restore a single state entry without the <c>where T : class</c> constraint of
+    /// <see cref="SetState{T}"/>. Intended for deserialization.
+    /// </summary>
+    public void RestoreState(string key, object value) => _state[key] = value;
+
+    /// <summary>
+    /// Restore the last-activity timestamp (which <see cref="AddTurn"/> would otherwise
+    /// overwrite). Intended for deserialization.
+    /// </summary>
+    public void RestoreActivityTimestamp(DateTimeOffset timestamp) => LastActivityAt = timestamp;
 }

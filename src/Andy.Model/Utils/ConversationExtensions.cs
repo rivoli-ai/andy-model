@@ -58,20 +58,23 @@ public static class ConversationExtensions
     }
 
     /// <summary>
-    /// Export conversation to JSON.
+    /// Export conversation to JSON. The format losslessly captures turns, message ids/roles,
+    /// tool calls, tool results, metadata, cache control, and conversation state; see
+    /// <see cref="ConversationSerialization"/> for the format and its state/metadata type policy.
     /// </summary>
     public static string ToJson(this Model.Conversation conversation)
     {
-        return JsonSerializer.Serialize(conversation, JsonOptions.Default);
+        return ConversationSerialization.Serialize(conversation);
     }
 
     /// <summary>
-    /// Import conversation from JSON.
+    /// Import a conversation previously produced by <see cref="ToJson"/>. Throws
+    /// <see cref="InvalidOperationException"/> with an actionable message for malformed,
+    /// null, or version-incompatible payloads.
     /// </summary>
     public static Model.Conversation FromJson(string json)
     {
-        return JsonSerializer.Deserialize<Model.Conversation>(json, JsonOptions.Default)
-               ?? throw new InvalidOperationException("Failed to deserialize conversation");
+        return ConversationSerialization.Deserialize(json);
     }
 }
 
