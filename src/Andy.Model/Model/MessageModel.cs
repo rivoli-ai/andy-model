@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 // LLM-Agnostic Conversation Framework in C# (No external dependencies)
 // Target: .NET 8+ (uses only BCL)
 
