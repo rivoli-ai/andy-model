@@ -279,12 +279,13 @@ public class AssistantWithManagerTests
     }
 
     [Fact]
-    public async Task AutoCompact_TriggersWhenThresholdExceeded()
+    public async Task AutoCompact_TriggersDeterministically_WhenThresholdExceeded()
     {
         // Arrange
         var options = new ConversationManagerOptions
         {
             CompactionThreshold = 2,
+            MaxRecentMessages = 2,
             AutoCompact = true,
             CompressionStrategy = CompressionStrategy.Summary
         };
@@ -295,16 +296,42 @@ public class AssistantWithManagerTests
             new MockLlmProvider()
         );
 
-        // Act - Add turns to exceed threshold
+        // Act - Add turns to exceed the threshold. Compaction is awaited inside RunTurnAsync,
+        // so no timing delay is needed to observe its effect.
         await assistant.RunTurnAsync("Message 1");
         await assistant.RunTurnAsync("Message 2");
-        await assistant.RunTurnAsync("Message 3"); // Should trigger compaction
+        await assistant.RunTurnAsync("Message 3"); // Exceeds threshold -> compaction runs and completes
 
-        // Wait for async compaction
-        await Task.Delay(100);
-
-        // Assert
+        // Assert - the summary state is present immediately after the awaited turn.
         Assert.True(conversationManager.ShouldCompact());
+        Assert.NotNull(conversationManager.Conversation.GetState<string>("conversation_summary"));
+    }
+
+    [Fact]
+    public async Task AutoCompact_Disabled_NeverCompacts()
+    {
+        // Arrange
+        var options = new ConversationManagerOptions
+        {
+            CompactionThreshold = 2,
+            AutoCompact = false,
+            CompressionStrategy = CompressionStrategy.Summary
+        };
+        var conversationManager = new DefaultConversationManager(options);
+        var assistant = new AssistantWithManager(
+            conversationManager,
+            new ToolRegistry(),
+            new MockLlmProvider()
+        );
+
+        // Act - exceed the threshold with AutoCompact disabled.
+        await assistant.RunTurnAsync("Message 1");
+        await assistant.RunTurnAsync("Message 2");
+        await assistant.RunTurnAsync("Message 3");
+
+        // Assert - ShouldCompact is true, but no automatic compaction ran.
+        Assert.True(conversationManager.ShouldCompact());
+        Assert.Null(conversationManager.Conversation.GetState<string>("conversation_summary"));
     }
 
     [Fact]
