@@ -36,7 +36,8 @@ public class SlidingWindowConversationManager : DefaultConversationManager
 
     public override IEnumerable<Message> ExtractMessagesForNextTurn()
     {
-        var allMessages = Conversation.ToChronoMessages().ToList();
+        // Apply the same age/role filters as the base manager for consistent cross-manager semantics.
+        var allMessages = ApplyFilters(Conversation.ToChronoMessages().ToList());
         var result = new List<Message>();
 
         // Preserve first message if it's a system message
@@ -67,6 +68,12 @@ public class SlidingWindowConversationManager : DefaultConversationManager
 
         result.AddRange(windowMessages);
         return result;
+    }
+
+    public override void Reset()
+    {
+        base.Reset();
+        _summaryQueue?.Clear();
     }
 
     public override async Task<bool> CompactConversationAsync()

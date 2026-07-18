@@ -36,7 +36,8 @@ public class SemanticConversationManager : DefaultConversationManager
 
     public override IEnumerable<Message> ExtractMessagesForNextTurn()
     {
-        var allMessages = Conversation.ToChronoMessages().ToList();
+        // Apply the same age/role filters as the base manager for consistent cross-manager semantics.
+        var allMessages = ApplyFilters(Conversation.ToChronoMessages().ToList());
 
         // Score all messages
         ScoreMessages(allMessages);
@@ -45,6 +46,12 @@ public class SemanticConversationManager : DefaultConversationManager
         var selectedMessages = SelectImportantMessages(allMessages);
 
         return selectedMessages;
+    }
+
+    public override void Reset()
+    {
+        base.Reset();
+        _messageImportanceScores.Clear();
     }
 
     protected virtual void ScoreMessages(List<Message> messages)
@@ -129,82 +136,72 @@ public class SemanticConversationManager : DefaultConversationManager
 
     protected virtual List<Message> SelectImportantMessages(List<Message> messages)
     {
-        var options = base._options ?? new ConversationManagerOptions();
-
-        // Sort messages by importance score
-        var sortedMessages = messages
-            .OrderByDescending(m => _messageImportanceScores.GetValueOrDefault(m.Id, 0))
-            .ToList();
-
-        var result = new List<Message>();
+        var options = base._options;
+        var keep = new bool[messages.Count];
         var tokenCount = 0;
         var messageCount = 0;
 
-        // Always include the first system message if present
-        var firstSystem = messages.FirstOrDefault(m => m.Role == Role.System);
-        if (firstSystem != null)
+        // Always include the first system message if present.
+        var firstSystem = messages.FindIndex(m => m.Role == Role.System);
+        if (firstSystem >= 0)
         {
-            result.Add(firstSystem);
-            tokenCount += EstimateTokens(firstSystem.Content);
+            keep[firstSystem] = true;
+            tokenCount += EstimateTokens(messages[firstSystem].Content);
             messageCount++;
         }
 
-        // Add messages by importance until we hit limits
-        foreach (var message in sortedMessages)
+        // Always include messages flagged by PreserveMetadataKeys.
+        for (int i = 0; i < messages.Count; i++)
         {
-            if (message == firstSystem) continue; // Already added
+            if (!keep[i] && HasPreservedMetadata(messages[i]))
+            {
+                keep[i] = true;
+                tokenCount += EstimateTokens(messages[i].Content);
+                messageCount++;
+            }
+        }
 
-            var msgTokens = EstimateTokens(message.Content);
+        // Candidate indices ordered by importance (highest first).
+        var candidates = Enumerable.Range(0, messages.Count)
+            .Where(i => !keep[i])
+            .OrderByDescending(i => _messageImportanceScores.GetValueOrDefault(messages[i].Id, 0))
+            .ToList();
 
-            // Check limits
-            if (tokenCount + msgTokens > options.MaxTokens)
-                break;
+        foreach (var i in candidates)
+        {
             if (messageCount >= options.MaxRecentMessages)
-                break;
+            {
+                break; // message-count cap reached
+            }
 
-            result.Add(message);
+            var msgTokens = EstimateTokens(messages[i].Content);
+            if (tokenCount + msgTokens > options.MaxTokens)
+            {
+                // Skip this oversized candidate but keep considering smaller ones.
+                continue;
+            }
+
+            keep[i] = true;
             tokenCount += msgTokens;
             messageCount++;
         }
 
-        // Ensure messages are in chronological order
-        result = result.OrderBy(m => m.Timestamp).ToList();
-
-        // If we have tool calls without their results, add the results
+        // Retain/remove tool calls and their results as complete units in both directions.
+        // Completing a unit may add its counterpart even past the caps above; this is the same
+        // documented, bounded trade-off used by the base manager in favor of a protocol-valid
+        // sequence.
         if (options.PreserveToolCallPairs)
         {
-            result = EnsureToolCallPairs(messages, result);
+            EnsureCompleteToolUnits(messages, keep);
         }
 
+        // Materialize in chronological order.
+        var result = new List<Message>();
+        for (int i = 0; i < messages.Count; i++)
+        {
+            if (keep[i]) result.Add(messages[i]);
+        }
         return result;
-    }
-
-    protected virtual List<Message> EnsureToolCallPairs(List<Message> allMessages, List<Message> selectedMessages)
-    {
-        var toolCallIds = new HashSet<string>();
-
-        // Find all tool calls in selected messages
-        foreach (var msg in selectedMessages)
-        {
-            foreach (var toolCall in msg.ToolCalls)
-            {
-                toolCallIds.Add(toolCall.Id);
-            }
-        }
-
-        // Add missing tool results
-        foreach (var msg in allMessages)
-        {
-            if (msg.Role == Role.Tool && !selectedMessages.Contains(msg))
-            {
-                if (msg.ToolResults.Any(tr => toolCallIds.Contains(tr.CallId)))
-                {
-                    selectedMessages.Add(msg);
-                }
-            }
-        }
-
-        return selectedMessages.OrderBy(m => m.Timestamp).ToList();
     }
 
     private void InitializeDefaultKeywords()

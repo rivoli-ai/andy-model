@@ -51,9 +51,28 @@ public class ConversationManagerOptions
     public bool AutoCompact { get; set; } = true;
 
     /// <summary>
-    /// Custom metadata to preserve during compaction.
+    /// Metadata keys that mark a message as always-preserved. A message whose
+    /// <see cref="Andy.Model.Model.Message.Metadata"/> contains any of these keys is exempt
+    /// from age-based filtering and is always retained by the Smart and Semantic compression
+    /// strategies, across every conversation manager. Empty by default.
     /// </summary>
     public HashSet<string> PreserveMetadataKeys { get; set; } = new();
+
+    /// <summary>
+    /// Validate the option values, throwing for negative or otherwise invalid configuration.
+    /// Called by conversation-manager constructors so misconfiguration fails fast.
+    /// </summary>
+    public void Validate()
+    {
+        if (MaxTokens <= 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxTokens), MaxTokens, "MaxTokens must be greater than zero.");
+        if (MaxRecentMessages < 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxRecentMessages), MaxRecentMessages, "MaxRecentMessages cannot be negative.");
+        if (CompactionThreshold < 0)
+            throw new ArgumentOutOfRangeException(nameof(CompactionThreshold), CompactionThreshold, "CompactionThreshold cannot be negative.");
+        if (MaxMessageAge < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(MaxMessageAge), MaxMessageAge, "MaxMessageAge cannot be negative.");
+    }
 }
 
 /// <summary>
