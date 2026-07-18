@@ -109,55 +109,55 @@ class Program
             Console.WriteLine("User: What's the 10th fibonacci number?");
             var response1 = await assistant.RunTurnAsync("What's the 10th fibonacci number?");
 
-        // Check if tools were called
-        var turn1 = conversation.Turns.Last();
-        if (turn1.ToolMessages.Any())
-        {
-            Console.WriteLine("\nAssistant called tools:");
-            foreach (var toolMsg in turn1.ToolMessages)
+            // Check if tools were called
+            var turn1 = conversation.Turns.Last();
+            if (turn1.ToolMessages.Any())
             {
-                var toolResult = toolMsg.ToolResults?.FirstOrDefault();
-                if (toolResult != null)
+                Console.WriteLine("\nAssistant called tools:");
+                foreach (var toolMsg in turn1.ToolMessages)
                 {
-                    Console.WriteLine($"  Tool: {toolResult.Name}");
-                    Console.WriteLine($"  Result: {toolResult.ResultJson}");
+                    var toolResult = toolMsg.ToolResults?.FirstOrDefault();
+                    if (toolResult != null)
+                    {
+                        Console.WriteLine($"  Tool: {toolResult.Name}");
+                        Console.WriteLine($"  Result: {toolResult.ResultJson}");
+                    }
                 }
             }
-        }
 
-        Console.WriteLine($"\nAssistant: {response1.Content}");
+            Console.WriteLine($"\nAssistant: {response1.Content}");
 
-        // Small delay to avoid rate limiting
-        await Task.Delay(1500);
+            // Small delay to avoid rate limiting
+            await Task.Delay(1500);
 
-        // Ask about time
-        Console.WriteLine("\nUser: What time is it?");
-        var response2 = await assistant.RunTurnAsync("What time is it?");
+            // Ask about time
+            Console.WriteLine("\nUser: What time is it?");
+            var response2 = await assistant.RunTurnAsync("What time is it?");
 
-        // Check if tools were called
-        var turn2 = conversation.Turns.Last();
-        if (turn2.ToolMessages.Any())
-        {
-            Console.WriteLine("\nAssistant called tools:");
-            foreach (var toolMsg in turn2.ToolMessages)
+            // Check if tools were called
+            var turn2 = conversation.Turns.Last();
+            if (turn2.ToolMessages.Any())
             {
-                var toolResult = toolMsg.ToolResults?.FirstOrDefault();
-                if (toolResult != null)
+                Console.WriteLine("\nAssistant called tools:");
+                foreach (var toolMsg in turn2.ToolMessages)
                 {
-                    Console.WriteLine($"  Tool: {toolResult.Name}");
-                    Console.WriteLine($"  Result: {toolResult.ResultJson}");
+                    var toolResult = toolMsg.ToolResults?.FirstOrDefault();
+                    if (toolResult != null)
+                    {
+                        Console.WriteLine($"  Tool: {toolResult.Name}");
+                        Console.WriteLine($"  Result: {toolResult.ResultJson}");
+                    }
                 }
             }
-        }
 
-        Console.WriteLine($"\nAssistant: {response2.Content}");
+            Console.WriteLine($"\nAssistant: {response2.Content}");
 
-        // Show conversation stats
-        Console.WriteLine("\n=== Conversation Statistics ===");
-        var stats = conversation.GetStats();
-        Console.WriteLine($"Total Turns: {stats.TotalTurns}");
-        Console.WriteLine($"User Messages: {stats.UserMessages}");
-        Console.WriteLine($"Assistant Messages: {stats.AssistantMessages}");
+            // Show conversation stats
+            Console.WriteLine("\n=== Conversation Statistics ===");
+            var stats = conversation.GetStats();
+            Console.WriteLine($"Total Turns: {stats.TotalTurns}");
+            Console.WriteLine($"User Messages: {stats.UserMessages}");
+            Console.WriteLine($"Assistant Messages: {stats.AssistantMessages}");
             Console.WriteLine($"Tool Calls: {stats.ToolCalls}");
             Console.WriteLine($"Tool Messages: {stats.ToolMessages}");
         }
