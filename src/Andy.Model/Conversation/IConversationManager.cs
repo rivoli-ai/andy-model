@@ -34,6 +34,15 @@ public interface IConversationManager
     Task<bool> CompactConversationAsync();
 
     /// <summary>
+    /// Single, awaited entry point for automatic (orchestration-driven) compaction.
+    /// Performs compaction only when the <c>AutoCompact</c> option is enabled and
+    /// <see cref="ShouldCompact"/> returns true. This is the sole owner of automatic
+    /// compaction; <see cref="AddTurn"/> never triggers compaction on its own.
+    /// </summary>
+    /// <returns>True if compaction occurred, false otherwise.</returns>
+    Task<bool> CompactIfNeededAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Get a summary of the conversation up to this point.
     /// Useful for context switching or long-running conversations.
     /// </summary>

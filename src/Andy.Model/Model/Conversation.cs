@@ -12,10 +12,10 @@ public sealed class Conversation
 
     // Conversation metadata
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
-    
+
     // UTC timestamp when the conversation was created.
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
-    
+
     // UTC timestamp of the last activity (message added).
     public DateTimeOffset LastActivityAt { get; private set; } = DateTimeOffset.UtcNow;
 

@@ -9,13 +9,18 @@ using Andy.Model.Utils;
 namespace Andy.Model.Orchestration;
 
 /// <summary>
-/// Enhanced Assistant that uses IConversationManager for flexible conversation handling.
+/// Enhanced Assistant that uses <see cref="IConversationManager"/> for flexible
+/// conversation handling. Behavior mirrors <see cref="Assistant"/> exactly: bounded
+/// multi-step tool loops, complete protocol-ordered history, and identical streaming
+/// and non-streaming semantics.
 /// </summary>
-public sealed class AssistantWithManager
+public sealed class AssistantWithManager : IAssistantEventSink
 {
     private readonly IConversationManager _conversationManager;
     private readonly ToolRegistry _tools;
     private readonly ILlmProvider _llm;
+    private readonly AssistantOptions _options;
+    private readonly ToolExecutionEngine _engine;
 
     // Events (same as original Assistant)
     public event EventHandler<TurnStartedEventArgs>? TurnStarted;
@@ -27,23 +32,27 @@ public sealed class AssistantWithManager
     public event EventHandler<ToolExecutionCompletedEventArgs>? ToolExecutionCompleted;
     public event EventHandler<ToolNotFoundEventArgs>? ToolNotFound;
     public event EventHandler<ToolValidationFailedEventArgs>? ToolValidationFailed;
+    public event EventHandler<ToolIterationLimitReachedEventArgs>? ToolIterationLimitReached;
     public event EventHandler<ErrorOccurredEventArgs>? ErrorOccurred;
 
     /// <summary>
     /// Create assistant with a specific conversation manager.
     /// </summary>
-    public AssistantWithManager(IConversationManager conversationManager, ToolRegistry tools, ILlmProvider llm)
+    public AssistantWithManager(IConversationManager conversationManager, ToolRegistry tools, ILlmProvider llm, AssistantOptions? options = null)
     {
         _conversationManager = conversationManager ?? throw new ArgumentNullException(nameof(conversationManager));
         _tools = tools ?? throw new ArgumentNullException(nameof(tools));
         _llm = llm ?? throw new ArgumentNullException(nameof(llm));
+        _options = options ?? AssistantOptions.Default;
+        _options.Validate();
+        _engine = new ToolExecutionEngine(_tools, _options, this);
     }
 
     /// <summary>
     /// Create assistant with default conversation manager.
     /// </summary>
-    public AssistantWithManager(ToolRegistry tools, ILlmProvider llm, ConversationManagerOptions? options = null)
-        : this(new DefaultConversationManager(options), tools, llm)
+    public AssistantWithManager(ToolRegistry tools, ILlmProvider llm, ConversationManagerOptions? options = null, AssistantOptions? assistantOptions = null)
+        : this(new DefaultConversationManager(options), tools, llm, assistantOptions)
     {
     }
 
@@ -60,115 +69,89 @@ public sealed class AssistantWithManager
     public async Task<Message> RunTurnAsync(string userText, CancellationToken ct = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        var toolCallsExecuted = 0;
+        var counts = new ToolOutcomeCounts();
+
+        TurnStarted?.Invoke(this, new TurnStartedEventArgs
+        {
+            ConversationId = Conversation.Id,
+            UserMessage = userText,
+            TurnNumber = Conversation.Turns.Count + 1
+        });
+
+        var turn = new Turn
+        {
+            UserOrSystemMessage = new Message { Role = Role.User, Content = userText }
+        };
+        _conversationManager.AddTurn(turn);
+
+        var tools = _tools.GetDeclaredTools();
+        Message finalAssistant;
 
         try
         {
-            // Fire turn started event
-            TurnStarted?.Invoke(this, new TurnStartedEventArgs
+            while (true)
             {
-                ConversationId = Conversation.Id,
-                UserMessage = userText,
-                TurnNumber = Conversation.Turns.Count + 1
-            });
+                var messages = _conversationManager.ExtractMessagesForNextTurn().ToArray();
 
-            // 1) Record user message as a new turn.
-            var turn = new Turn
-            {
-                UserOrSystemMessage = new Message { Role = Role.User, Content = userText }
-            };
-            _conversationManager.AddTurn(turn);
-
-            // 2) Build context using conversation manager and call LLM.
-            var messages = _conversationManager.ExtractMessagesForNextTurn().ToArray();
-            var tools = _tools.GetDeclaredTools();
-
-            // Fire LLM request started event
-            LlmRequestStarted?.Invoke(this, new LlmRequestStartedEventArgs
-            {
-                ConversationId = Conversation.Id,
-                MessageCount = messages.Length,
-                ToolCount = tools.Length,
-                IsRetryAfterTools = false
-            });
-
-            var request = new LlmRequest { Messages = messages, Tools = tools };
-            var response = await _llm.CompleteAsync(request, ct);
-            turn.AssistantMessage = response.AssistantMessage;
-
-            // Fire LLM response received event
-            LlmResponseReceived?.Invoke(this, new LlmResponseReceivedEventArgs
-            {
-                ConversationId = Conversation.Id,
-                Response = response.AssistantMessage,
-                Usage = response.Usage,
-                HasToolCalls = response.HasToolCalls
-            });
-
-            // 3) If tool calls present, execute all and append results.
-            if (response.HasToolCalls)
-            {
-                await ExecuteToolCalls(response.AssistantMessage.ToolCalls, turn, tools, ct);
-                toolCallsExecuted = response.AssistantMessage.ToolCalls.Count;
-
-                // 4) After tools, rebuild context and get final assistant response.
-                messages = _conversationManager.ExtractMessagesForNextTurn().ToArray();
-
-                // Fire LLM request started event (retry after tools)
                 LlmRequestStarted?.Invoke(this, new LlmRequestStartedEventArgs
                 {
                     ConversationId = Conversation.Id,
                     MessageCount = messages.Length,
                     ToolCount = tools.Length,
-                    IsRetryAfterTools = true
+                    IsRetryAfterTools = counts.Rounds > 0
                 });
 
-                var request2 = new LlmRequest { Messages = messages, Tools = tools };
-                var second = await _llm.CompleteAsync(request2, ct);
+                var request = new LlmRequest { Messages = messages, Tools = tools };
+                var response = await _llm.CompleteAsync(request, ct).ConfigureAwait(false);
+                var assistantMessage = response.AssistantMessage;
 
-                // Fire LLM response received event
+                turn.AddAssistantMessage(assistantMessage);
+
                 LlmResponseReceived?.Invoke(this, new LlmResponseReceivedEventArgs
                 {
                     ConversationId = Conversation.Id,
-                    Response = second.AssistantMessage,
-                    Usage = second.Usage,
-                    HasToolCalls = false
+                    Response = assistantMessage,
+                    Usage = response.Usage,
+                    HasToolCalls = response.HasToolCalls
                 });
 
-                // Update the assistant message content but preserve the tool calls from the first response
-                turn.AssistantMessage = new Message
+                if (!response.HasToolCalls)
                 {
-                    Role = Role.Assistant,
-                    Content = second.AssistantMessage.Content,
-                    ToolCalls = response.AssistantMessage.ToolCalls, // Preserve the original tool calls
-                    Metadata = second.AssistantMessage.Metadata,
-                    Timestamp = second.AssistantMessage.Timestamp,
-                    Id = second.AssistantMessage.Id,
-                };
+                    finalAssistant = assistantMessage;
+                    break;
+                }
+
+                if (counts.Rounds >= _options.MaxToolIterations)
+                {
+                    if (_options.OnToolIterationLimit == ToolIterationLimitBehavior.Throw)
+                    {
+                        throw new ToolIterationLimitException(_options.MaxToolIterations);
+                    }
+
+                    ToolIterationLimitReached?.Invoke(this, new ToolIterationLimitReachedEventArgs
+                    {
+                        ConversationId = Conversation.Id,
+                        MaxToolIterations = _options.MaxToolIterations,
+                        PendingToolCalls = assistantMessage.ToolCalls.ToArray()
+                    });
+                    finalAssistant = assistantMessage;
+                    break;
+                }
+
+                var roundCounts = await _engine.ExecuteRoundAsync(
+                    assistantMessage.ToolCalls, tools, turn, Conversation.Id, ct).ConfigureAwait(false);
+                counts.Add(roundCounts);
             }
 
-            // Check if automatic compaction is needed
-            if (_conversationManager.ShouldCompact())
-            {
-                _ = _conversationManager.CompactConversationAsync().ConfigureAwait(false);
-            }
-
-            stopwatch.Stop();
-
-            // Fire turn completed event
-            TurnCompleted?.Invoke(this, new TurnCompletedEventArgs
-            {
-                ConversationId = Conversation.Id,
-                AssistantMessage = turn.AssistantMessage!,
-                ToolCallsExecuted = toolCallsExecuted,
-                Duration = stopwatch.Elapsed
-            });
-
-            return turn.AssistantMessage!;
+            // Automatic compaction: single owner, awaited, honors AutoCompact and exceptions.
+            await _conversationManager.CompactIfNeededAsync(ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            // Fire error occurred event
             ErrorOccurred?.Invoke(this, new ErrorOccurredEventArgs
             {
                 ConversationId = Conversation.Id,
@@ -178,17 +161,21 @@ public sealed class AssistantWithManager
             });
             throw;
         }
+
+        stopwatch.Stop();
+        RaiseTurnCompleted(finalAssistant, counts, stopwatch.Elapsed);
+        return finalAssistant;
     }
 
     /// <summary>
-    /// Run a streaming turn for real-time responses.
+    /// Run a streaming turn for real-time responses. See <see cref="Assistant.RunTurnStreamAsync"/>
+    /// for the accumulation and persistence semantics, which are identical here.
     /// </summary>
     public async IAsyncEnumerable<Message> RunTurnStreamAsync(string userText, [EnumeratorCancellation] CancellationToken ct = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        var toolCallsExecuted = 0;
+        var counts = new ToolOutcomeCounts();
 
-        // Fire turn started event
         TurnStarted?.Invoke(this, new TurnStartedEventArgs
         {
             ConversationId = Conversation.Id,
@@ -196,106 +183,126 @@ public sealed class AssistantWithManager
             TurnNumber = Conversation.Turns.Count + 1
         });
 
-        // 1) Record user message as a new turn.
         var turn = new Turn
         {
             UserOrSystemMessage = new Message { Role = Role.User, Content = userText }
         };
         _conversationManager.AddTurn(turn);
 
-        // 2) Build context and stream LLM response.
-        var messages = _conversationManager.ExtractMessagesForNextTurn().ToArray();
         var tools = _tools.GetDeclaredTools();
+        Message finalAssistant = new() { Role = Role.Assistant, Content = string.Empty };
 
-        // Fire LLM request started event
-        LlmRequestStarted?.Invoke(this, new LlmRequestStartedEventArgs
+        while (true)
         {
-            ConversationId = Conversation.Id,
-            MessageCount = messages.Length,
-            ToolCount = tools.Length,
-            IsRetryAfterTools = false
-        });
+            var messages = _conversationManager.ExtractMessagesForNextTurn().ToArray();
 
-        var hasToolCalls = false;
-        var toolCalls = new List<ToolCall>();
-
-        var request = new LlmRequest { Messages = messages, Tools = tools };
-        await foreach (var response in _llm.StreamCompleteAsync(request, ct))
-        {
-            var message = response.Delta;
-            if (message?.ToolCalls.Any() == true)
-            {
-                hasToolCalls = true;
-                toolCalls.AddRange(message.ToolCalls);
-            }
-
-            // Fire streaming token received event if message is not null
-            if (message != null)
-            {
-                StreamingTokenReceived?.Invoke(this, new StreamingTokenReceivedEventArgs
-                {
-                    ConversationId = Conversation.Id,
-                    Delta = message,
-                    IsComplete = response.IsComplete
-                });
-
-                yield return message;
-            }
-        }
-
-        // 3) If tool calls present, execute them and stream final response.
-        if (hasToolCalls && toolCalls.Any())
-        {
-            await ExecuteToolCalls(toolCalls, turn, tools, ct);
-            toolCallsExecuted = toolCalls.Count;
-
-            // Stream final response after tool execution
-            messages = _conversationManager.ExtractMessagesForNextTurn().ToArray();
-
-            // Fire LLM request started event (retry after tools)
             LlmRequestStarted?.Invoke(this, new LlmRequestStartedEventArgs
             {
                 ConversationId = Conversation.Id,
                 MessageCount = messages.Length,
                 ToolCount = tools.Length,
-                IsRetryAfterTools = true
+                IsRetryAfterTools = counts.Rounds > 0
             });
 
-            var request2 = new LlmRequest { Messages = messages, Tools = tools };
-            Message? lastMessage = null;
-            await foreach (var response in _llm.StreamCompleteAsync(request2, ct))
+            var request = new LlmRequest { Messages = messages, Tools = tools };
+            var accumulator = new StreamingResponseAccumulator();
+
+            var enumerator = _llm.StreamCompleteAsync(request, ct).GetAsyncEnumerator(ct);
+            try
             {
-                if (response.Delta != null)
+                while (true)
                 {
-                    lastMessage = response.Delta;
-
-                    // Fire streaming token received event
-                    StreamingTokenReceived?.Invoke(this, new StreamingTokenReceivedEventArgs
+                    bool moved;
+                    try
                     {
-                        ConversationId = Conversation.Id,
-                        Delta = response.Delta,
-                        IsComplete = response.IsComplete
-                    });
+                        moved = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorOccurred?.Invoke(this, new ErrorOccurredEventArgs
+                        {
+                            ConversationId = Conversation.Id,
+                            Exception = ex,
+                            Context = "RunTurnStreamAsync",
+                            IsCritical = true
+                        });
+                        throw;
+                    }
 
-                    yield return response.Delta;
+                    if (!moved) break;
+
+                    var chunk = enumerator.Current;
+                    if (chunk.Delta != null)
+                    {
+                        accumulator.AddDelta(chunk.Delta);
+                        StreamingTokenReceived?.Invoke(this, new StreamingTokenReceivedEventArgs
+                        {
+                            ConversationId = Conversation.Id,
+                            Delta = chunk.Delta,
+                            IsComplete = chunk.IsComplete
+                        });
+                        yield return chunk.Delta;
+                    }
                 }
             }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
 
-            // Update turn with final assistant message
-            if (lastMessage != null)
-                turn.AssistantMessage = lastMessage;
+            var assistantMessage = accumulator.Build();
+            turn.AddAssistantMessage(assistantMessage);
+            finalAssistant = assistantMessage;
+
+            LlmResponseReceived?.Invoke(this, new LlmResponseReceivedEventArgs
+            {
+                ConversationId = Conversation.Id,
+                Response = assistantMessage,
+                Usage = null,
+                HasToolCalls = accumulator.HasToolCalls
+            });
+
+            if (!accumulator.HasToolCalls)
+            {
+                break;
+            }
+
+            if (counts.Rounds >= _options.MaxToolIterations)
+            {
+                if (_options.OnToolIterationLimit == ToolIterationLimitBehavior.Throw)
+                {
+                    ErrorOccurred?.Invoke(this, new ErrorOccurredEventArgs
+                    {
+                        ConversationId = Conversation.Id,
+                        Exception = new ToolIterationLimitException(_options.MaxToolIterations),
+                        Context = "RunTurnStreamAsync",
+                        IsCritical = true
+                    });
+                    throw new ToolIterationLimitException(_options.MaxToolIterations);
+                }
+
+                ToolIterationLimitReached?.Invoke(this, new ToolIterationLimitReachedEventArgs
+                {
+                    ConversationId = Conversation.Id,
+                    MaxToolIterations = _options.MaxToolIterations,
+                    PendingToolCalls = assistantMessage.ToolCalls.ToArray()
+                });
+                break;
+            }
+
+            var roundCounts = await _engine.ExecuteRoundAsync(
+                assistantMessage.ToolCalls, tools, turn, Conversation.Id, ct).ConfigureAwait(false);
+            counts.Add(roundCounts);
         }
 
-        stopwatch.Stop();
+        await _conversationManager.CompactIfNeededAsync(ct).ConfigureAwait(false);
 
-        // Fire turn completed event
-        TurnCompleted?.Invoke(this, new TurnCompletedEventArgs
-        {
-            ConversationId = Conversation.Id,
-            AssistantMessage = turn.AssistantMessage ?? new Message { Role = Role.Assistant, Content = string.Empty },
-            ToolCallsExecuted = toolCallsExecuted,
-            Duration = stopwatch.Elapsed
-        });
+        stopwatch.Stop();
+        RaiseTurnCompleted(finalAssistant, counts, stopwatch.Elapsed);
     }
 
     /// <summary>
@@ -322,124 +329,26 @@ public sealed class AssistantWithManager
         return _conversationManager.GetStatistics();
     }
 
-    private async Task ExecuteToolCalls(IEnumerable<ToolCall> toolCalls, Turn turn, ToolDeclaration[] tools, CancellationToken ct)
+    private void RaiseTurnCompleted(Message finalAssistant, in ToolOutcomeCounts counts, TimeSpan duration)
     {
-        foreach (var call in toolCalls)
+        TurnCompleted?.Invoke(this, new TurnCompletedEventArgs
         {
-            // Validate tool call before execution
-            var toolDef = tools.FirstOrDefault(t => t.Name.Equals(call.Name, StringComparison.OrdinalIgnoreCase));
-            if (toolDef != null)
-            {
-                var validation = ToolCallValidator.Validate(call, toolDef);
-                if (!validation.IsValid)
-                {
-                    // Fire validation failed event
-                    ToolValidationFailed?.Invoke(this, new ToolValidationFailedEventArgs
-                    {
-                        ConversationId = Conversation.Id,
-                        ToolCall = call,
-                        ValidationErrors = validation.Errors.ToArray()
-                    });
-
-                    var validationError = ToolResult.FromObject(call.Id, call.Name,
-                        new { error = "validation_failed", details = validation.Errors }, isError: true);
-                    var toolMsg = new Message
-                    {
-                        Role = Role.Tool,
-                        Content = validationError.ResultJson,
-                        ToolResults = new List<ToolResult> { validationError },
-                        Metadata = new Dictionary<string, object>
-                        {
-                            ["tool_name"] = call.Name,
-                            ["tool_call_id"] = call.Id,
-                            ["validation_error"] = true
-                        }
-                    };
-                    turn.ToolMessages.Add(toolMsg);
-                    continue;
-                }
-            }
-
-            if (_tools.TryGet(call.Name, out var tool))
-            {
-                // Fire tool execution started event
-                ToolExecutionStarted?.Invoke(this, new ToolExecutionStartedEventArgs
-                {
-                    ConversationId = Conversation.Id,
-                    ToolCall = call,
-                    ToolName = call.Name
-                });
-
-                var toolStopwatch = Stopwatch.StartNew();
-                ToolResult result;
-                try
-                {
-                    result = await tool.ExecuteAsync(call, ct);
-                }
-                catch (ToolExecutionException ex)
-                {
-                    result = ToolResult.FromObject(call.Id, call.Name,
-                        new { error = ex.Message, tool_name = ex.ToolName, call_id = ex.CallId }, isError: true);
-                }
-                catch (Exception ex)
-                {
-                    result = ToolResult.FromObject(call.Id, call.Name,
-                        new { error = ex.Message, type = ex.GetType().Name }, isError: true);
-                }
-                toolStopwatch.Stop();
-
-                // Fire tool execution completed event
-                ToolExecutionCompleted?.Invoke(this, new ToolExecutionCompletedEventArgs
-                {
-                    ConversationId = Conversation.Id,
-                    ToolCall = call,
-                    Result = result,
-                    IsError = result.IsError,
-                    Duration = toolStopwatch.Elapsed
-                });
-
-                var toolMsg = new Message
-                {
-                    Role = Role.Tool,
-                    Content = result.ResultJson,
-                    ToolResults = new List<ToolResult> { result },
-                    Metadata = new Dictionary<string, object>
-                    {
-                        ["tool_name"] = call.Name,
-                        ["tool_call_id"] = call.Id,
-                        ["is_error"] = result.IsError
-                    }
-                };
-                turn.ToolMessages.Add(toolMsg);
-            }
-            else
-            {
-                // Fire tool not found event
-                ToolNotFound?.Invoke(this, new ToolNotFoundEventArgs
-                {
-                    ConversationId = Conversation.Id,
-                    ToolName = call.Name,
-                    CallId = call.Id,
-                    AvailableTools = _tools.GetRegisteredToolNames().ToArray()
-                });
-
-                var notFound = ToolResult.FromObject(call.Id, call.Name,
-                    new { error = "tool_not_found", available_tools = _tools.GetRegisteredToolNames() }, isError: true);
-                var toolMsg = new Message
-                {
-                    Role = Role.Tool,
-                    Content = notFound.ResultJson,
-                    ToolResults = new List<ToolResult> {notFound},
-                    Metadata = new Dictionary<string, object>
-                    {
-                        ["tool_name"] = call.Name,
-                        ["tool_call_id"] = call.Id,
-                        ["tool_not_found"] = true
-                    }
-                };
-                
-                turn.ToolMessages.Add(toolMsg);
-            }
-        }
+            ConversationId = Conversation.Id,
+            AssistantMessage = finalAssistant,
+            ToolCallsExecuted = counts.Executed,
+            ToolCallsAttempted = counts.Attempted,
+            ToolCallsSucceeded = counts.Succeeded,
+            ToolCallsFailed = counts.Failed,
+            ToolCallsValidationRejected = counts.ValidationRejected,
+            ToolCallsNotFound = counts.NotFound,
+            ToolRounds = counts.Rounds,
+            Duration = duration
+        });
     }
+
+    // IAssistantEventSink — forwards shared-engine events to this instance's public events.
+    void IAssistantEventSink.RaiseToolExecutionStarted(ToolExecutionStartedEventArgs e) => ToolExecutionStarted?.Invoke(this, e);
+    void IAssistantEventSink.RaiseToolExecutionCompleted(ToolExecutionCompletedEventArgs e) => ToolExecutionCompleted?.Invoke(this, e);
+    void IAssistantEventSink.RaiseToolNotFound(ToolNotFoundEventArgs e) => ToolNotFound?.Invoke(this, e);
+    void IAssistantEventSink.RaiseToolValidationFailed(ToolValidationFailedEventArgs e) => ToolValidationFailed?.Invoke(this, e);
 }

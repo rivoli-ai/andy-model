@@ -30,12 +30,24 @@ public class DefaultConversationManager : IConversationManager
 
     public virtual void AddTurn(Turn turn)
     {
+        // AddTurn never triggers compaction on its own; automatic compaction is owned
+        // solely by CompactIfNeededAsync (invoked and awaited by the orchestrator).
         _conversation.AddTurn(turn);
+    }
 
-        if (_options.AutoCompact && ShouldCompact())
+    public virtual async Task<bool> CompactIfNeededAsync(CancellationToken ct = default)
+    {
+        if (!_options.AutoCompact)
         {
-            _ = CompactConversationAsync().ConfigureAwait(false);
+            return false;
         }
+
+        if (!ShouldCompact())
+        {
+            return false;
+        }
+
+        return await CompactConversationAsync().ConfigureAwait(false);
     }
 
     public virtual IEnumerable<Message> ExtractMessagesForNextTurn()
@@ -284,11 +296,13 @@ public class DefaultConversationManager : IConversationManager
 
     protected virtual async Task<string> CreateSummaryAsync(List<Turn> turns)
     {
-        // This is a placeholder - in a real implementation, you might use an LLM to generate summaries
-        var messageCount = turns.Sum(t => 1 + (t.AssistantMessage != null ? 1 : 0) + t.ToolMessages.Count);
-        var toolCallCount = turns.Sum(t => t.ToolMessages.Count);
+        // This is a placeholder - in a real implementation, you might use an LLM to generate summaries.
+        // Derive counts from the ordered protocol sequence so both legacy and orchestration-produced
+        // turns are counted correctly.
+        var messageCount = turns.Sum(t => t.EnumerateMessages().Count());
+        var toolResultCount = turns.Sum(t => t.EnumerateMessages().Count(m => m.Role == Role.Tool));
 
-        var summary = $"Summary of {turns.Count} turns ({messageCount} messages, {toolCallCount} tool calls):\n";
+        var summary = $"Summary of {turns.Count} turns ({messageCount} messages, {toolResultCount} tool calls):\n";
 
         // Extract key points from each turn
         foreach (var turn in turns.Take(5)) // Summarize first 5 turns as example
@@ -301,9 +315,10 @@ public class DefaultConversationManager : IConversationManager
                 summary += $"- User: {preview}\n";
             }
 
-            if (turn.AssistantMessage != null && turn.ToolMessages.Any())
+            var turnToolCount = turn.EnumerateMessages().Count(m => m.Role == Role.Tool);
+            if (turnToolCount > 0)
             {
-                summary += $"  Assistant used {turn.ToolMessages.Count} tools\n";
+                summary += $"  Assistant used {turnToolCount} tools\n";
             }
         }
 
