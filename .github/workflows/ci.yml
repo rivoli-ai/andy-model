@@ -51,11 +51,17 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       shell: bash
       run: |
-        file=$(find ./TestResults -name coverage.cobertura.xml | head -1)
-        if [ -z "$file" ]; then echo "No coverage report found"; exit 1; fi
-        rate=$(grep -o 'line-rate="[0-9.]*"' "$file" | head -1 | grep -o '[0-9.]*')
-        echo "Line coverage: $(python3 -c "print(f'{float('$rate')*100:.1f}%')") (threshold $(python3 -c "print(f'{float('${{ env.COVERAGE_THRESHOLD }}')*100:.0f}%')"))"
-        python3 -c "import sys; sys.exit(0 if float('$rate') >= float('${{ env.COVERAGE_THRESHOLD }}') else 1)"
+        python3 - "$COVERAGE_THRESHOLD" <<'PY'
+        import glob, sys, xml.etree.ElementTree as ET
+        threshold = float(sys.argv[1])
+        files = glob.glob('./TestResults/**/coverage.cobertura.xml', recursive=True)
+        if not files:
+            print('No coverage report found')
+            sys.exit(1)
+        rate = float(ET.parse(files[0]).getroot().get('line-rate'))
+        print(f'Line coverage: {rate * 100:.1f}% (threshold {threshold * 100:.0f}%)')
+        sys.exit(0 if rate >= threshold else 1)
+        PY
 
     - name: Upload coverage report
       if: matrix.os == 'ubuntu-latest'
