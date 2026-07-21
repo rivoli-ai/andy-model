@@ -41,23 +41,21 @@ This file contains authorized commands and configuration for Claude Code Assista
 
 ### Task Completion Tracking
 
-When completing a set of tasks or phase milestones:
+When completing a set of tasks or milestones:
 
-1. **Check the task list**: ALWAYS review the conversion plan to ensure all tasks in the current phase are complete
-2. **Mark tasks completed**: when a task is in a docs md file, and [ ] available for that task, mark it with [x] when it is complete
-3. **Add completion summary**: Include a dated summary section with key achievements
-4. **Update project status**: Reflect current phase progress in README.md
-5. **Commit changes**: Use descriptive commit messages and do not add a comment mentioning Claude Code, Anthropic, or any other code assistant in the commits messages, issues descriptions, PR or merges.
+1. **Track work in GitHub issues**: review the relevant issue(s) and their acceptance criteria to ensure everything is covered.
+2. **Mark checklists**: when a task list lives in a docs markdown file with `[ ]` items, mark them `[x]` as they complete.
+3. **Update project status**: reflect notable changes in README.md.
+4. **Commit changes**: use descriptive commit messages and do not mention Claude Code, Anthropic, or any other code assistant in commit messages, issue descriptions, PRs, or merges.
 
-**IMPORTANT**: Before marking a phase as complete, systematically review ALL tasks in that phase section of the conversion plan to ensure nothing was missed. Check both main tasks and sub-tasks.
+**IMPORTANT**: Before closing an issue, systematically review all of its acceptance criteria to ensure nothing was missed.
 
 ### Code Quality Standards
 
-- Always write test in the tests/ assemblies for new code or code changes in the src/ directory
-- Run `dotnet format` before committing to ensure consistent formatting
-- Use the pre-commit hooks: `./scripts/setup-git-hooks.sh` (Linux/macOS) or `./scripts/setup-git-hooks.ps1` (Windows)
+- Always write tests in the tests/ assemblies for new code or code changes in the src/ directory
+- Run `dotnet format` before committing to ensure consistent formatting (CI runs `dotnet format --verify-no-changes`)
 - Ensure all tests pass: `dotnet test`
-- Generate coverage reports for significant changes
+- Generate coverage reports for significant changes; CI enforces a line-coverage threshold
 
 ### Testing Requirements for Code Changes
 
@@ -71,51 +69,10 @@ When completing a set of tasks or phase milestones:
 
 ### Documentation Updates
 
-- Keep README.md current with latest .NET version and features
-- Update local development setup guide when adding new tools or processes
-- Maintain conversion plan progress tracking for transparency
-
-## Rendering System Architecture Issues
-
-### Current Problems (2025-08-11)
-
-The rendering system has fundamental architectural problems that cause erratic output:
-
-1. **Dual Rendering Approaches**: VirtualDomRenderer uses both:
-   - `RenderElement` method for positioning and z-ordering
-   - Visitor pattern (`Accept(this)`) for node-specific rendering
-   - These approaches conflict, causing double-rendering and positioning issues
-
-2. **Inconsistent Node Handling**:
-   - FragmentNode: Special handling in `RenderElement` but empty `VisitFragment`
-   - ClippingNode: Complex setup in `VisitClipping` but also processed by normal flow
-   - TextNode: Only handled via visitor pattern
-   - ElementNode: Handled by both approaches
-
-3. **API Inconsistency**:
-   - Some components use `Children.Add()` (not possible - readonly)
-   - Others use `AddChild()` method  
-   - Collection initializer syntax conflicts with fluent methods
-
-### Required Fixes
-
-1. **Unify Rendering**: Choose ONE approach - either visitor OR element-based
-2. **Fix Node Processing**: Each node type should have ONE clear rendering path
-3. **Consistent APIs**: All components should use same pattern for adding children
-4. **Proper Clipping**: Implement clipping in the unified rendering approach
-
-### Detailed Rendering Diagnostics
-
-The comprehensive logging system captures:
-- Layout calculations and constraints
-- Virtual DOM tree construction and diffing  
-- Rendering operations and positioning
-- Focus management and state changes
-- Performance metrics and timing
-
-Use `ComprehensiveLoggingInitializer.Initialize(isTestMode: true)` in tests to enable detailed rendering logs for debugging.
+- Keep README.md current with the supported .NET version and features
+- Update development/setup guidance when adding new tools or processes
 
 ## Notes
 
 - Coverage reports are generated in `./TestResults/CoverageReport/`
-- Integration tests may fail due to CLI execution context but unit tests provide good coverage
+- Andy.Model is a pure in-memory conversation/orchestration library with no CLI or filesystem side effects of its own

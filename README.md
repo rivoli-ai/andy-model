@@ -2,19 +2,14 @@
 
 Core model library for orchestrating assistant and LLM interactions with advanced conversation management.
 
-> **ALPHA RELEASE WARNING**
+> **Alpha status**
 >
-> This software is in ALPHA stage. **NO GUARANTEES** are made about its functionality, stability, or safety.
->
-> **CRITICAL WARNINGS:**
-> - This tool performs **DESTRUCTIVE OPERATIONS** on files and directories
-> - Permission management is **NOT FULLY TESTED** and may have security vulnerabilities
-> - **DO NOT USE** in production environments
-> - **DO NOT USE** on systems with critical or irreplaceable data
-> - **DO NOT USE** on systems without complete, verified backups
-> - The authors assume **NO RESPONSIBILITY** for data loss, system damage, or security breaches
->
-> **USE AT YOUR OWN RISK**
+> Andy.Model is in early **alpha**. The public API may change between releases without
+> notice, and there are no stability guarantees yet. It is a pure in-memory model and
+> orchestration library: it performs no filesystem, network, or other destructive
+> operations of its own — any side effects come solely from the `ILlmProvider` and
+> `ITool` implementations you supply. Provided under the Apache License 2.0 with no
+> warranty; see [LICENSE](LICENSE).
 
 ## Overview
 
@@ -120,39 +115,48 @@ var manager = new DefaultConversationManager(options);
 ### Implementing Tools
 
 ```csharp
-public class CalculatorTool : ITool
+public sealed class CalculatorTool : ITool
 {
     public ToolDeclaration Definition => new ToolDeclaration
     {
         Name = "calculator",
-        Description = "Performs basic arithmetic operations",
+        Description = "Performs a basic arithmetic operation on two numbers",
+        // Parameters use the JSON Schema subset validated by ToolCallValidator:
+        // nested dictionaries with string keys such as "type", "properties", "enum".
         Parameters = new Dictionary<string, object>
         {
             ["type"] = "object",
             ["properties"] = new Dictionary<string, object>
             {
-                ["operation"] = new { type = "string", enum = new[] { "add", "subtract", "multiply", "divide" } },
-                ["a"] = new { type = "number" },
-                ["b"] = new { type = "number" }
+                ["operation"] = new Dictionary<string, object>
+                {
+                    ["type"] = "string",
+                    ["enum"] = new[] { "add", "subtract", "multiply", "divide" }
+                },
+                ["a"] = new Dictionary<string, object> { ["type"] = "number" },
+                ["b"] = new Dictionary<string, object> { ["type"] = "number" }
             },
             ["required"] = new[] { "operation", "a", "b" }
         }
     };
 
-    public async Task<ToolResult> ExecuteAsync(ToolCall call, CancellationToken ct = default)
+    public Task<ToolResult> ExecuteAsync(ToolCall call, CancellationToken ct = default)
     {
-        // Parse arguments and perform calculation
-        var args = JsonSerializer.Deserialize<CalculatorArgs>(call.ArgumentsJson);
-        var result = args.Operation switch
+        var args = call.ArgumentsAsJsonElement();
+        var operation = args.GetProperty("operation").GetString();
+        var a = args.GetProperty("a").GetDouble();
+        var b = args.GetProperty("b").GetDouble();
+
+        double result = operation switch
         {
-            "add" => args.A + args.B,
-            "subtract" => args.A - args.B,
-            "multiply" => args.A * args.B,
-            "divide" => args.B != 0 ? args.A / args.B : throw new DivideByZeroException(),
-            _ => throw new ArgumentException($"Unknown operation: {args.Operation}")
+            "add" => a + b,
+            "subtract" => a - b,
+            "multiply" => a * b,
+            "divide" => b != 0 ? a / b : throw new DivideByZeroException(),
+            _ => throw new ArgumentException($"Unknown operation: {operation}")
         };
 
-        return ToolResult.FromObject(call.Id, call.Name, new { result });
+        return Task.FromResult(ToolResult.FromObject(call.Id, call.Name, new { result }));
     }
 }
 
@@ -243,12 +247,33 @@ reportgenerator -reports:"./TestResults/*/coverage.cobertura.xml" -targetdir:"./
 
 ## Contributing
 
-Contributions are welcome! Please ensure:
-- All tests pass
-- New features include tests
-- Code follows existing patterns
-- Documentation is updated
+Contributions are welcome. Before opening a pull request, please ensure the same gates
+CI enforces pass locally:
+
+```bash
+dotnet build -c Release        # builds without warnings-as-errors surprises
+dotnet test                    # all tests pass
+dotnet format --verify-no-changes   # code is formatted
+```
+
+Guidelines:
+- New features and bug fixes include tests.
+- Code follows existing patterns and passes `dotnet format`.
+- Documentation is updated when behavior changes.
+
+### Coverage
+
+CI collects line coverage on the production library and enforces an initial threshold of
+**75%** (see `.github/workflows/ci.yml`, `COVERAGE_THRESHOLD`). The threshold is a floor
+that should be raised over time, not lowered. Generate a local HTML report with:
+
+```bash
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+reportgenerator -reports:"./TestResults/*/coverage.cobertura.xml" -targetdir:"./TestResults/CoverageReport" -reporttypes:Html
+```
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for
+details. Source files carry an `SPDX-License-Identifier: Apache-2.0` marker where a header
+is present.

@@ -8,6 +8,9 @@ on:
 
 env:
   DOTNET_VERSION: '8.0.x'
+  # Initial line-coverage threshold for the production code under test (Andy.Model).
+  # Raise this over time; it must not regress. See README "Development" for context.
+  COVERAGE_THRESHOLD: '0.75'
 
 jobs:
   build-and-test:
@@ -30,5 +33,40 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
 
-    - name: Test
+    - name: Verify formatting
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet format --verify-no-changes
+
+    - name: Test (non-Linux)
+      if: matrix.os != 'ubuntu-latest'
       run: dotnet test --configuration Release --no-build --verbosity normal
+
+    - name: Test with coverage (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: >
+        dotnet test --configuration Release --no-build --verbosity normal
+        --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+    - name: Enforce coverage threshold
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash
+      run: |
+        python3 - "$COVERAGE_THRESHOLD" <<'PY'
+        import glob, sys, xml.etree.ElementTree as ET
+        threshold = float(sys.argv[1])
+        files = glob.glob('./TestResults/**/coverage.cobertura.xml', recursive=True)
+        if not files:
+            print('No coverage report found')
+            sys.exit(1)
+        rate = float(ET.parse(files[0]).getroot().get('line-rate'))
+        print(f'Line coverage: {rate * 100:.1f}% (threshold {threshold * 100:.0f}%)')
+        sys.exit(0 if rate >= threshold else 1)
+        PY
+
+    - name: Upload coverage report
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: ./TestResults/**/coverage.cobertura.xml
+        if-no-files-found: warn

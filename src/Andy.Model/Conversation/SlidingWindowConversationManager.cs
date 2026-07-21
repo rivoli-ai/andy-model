@@ -13,6 +13,10 @@ public class SlidingWindowConversationManager : DefaultConversationManager
     private readonly bool _preserveFirstMessage;
     private Queue<Message>? _summaryQueue;
 
+    // High-water mark: number of leading messages already folded into a summary. Prevents
+    // repeated compaction from re-summarizing the same messages into overlapping duplicates.
+    private int _summarizedCount;
+
     public SlidingWindowConversationManager(
         int windowSize = 10,
         bool preserveFirstMessage = true,
@@ -36,7 +40,8 @@ public class SlidingWindowConversationManager : DefaultConversationManager
 
     public override IEnumerable<Message> ExtractMessagesForNextTurn()
     {
-        var allMessages = Conversation.ToChronoMessages().ToList();
+        // Apply the same age/role filters as the base manager for consistent cross-manager semantics.
+        var allMessages = ApplyFilters(Conversation.ToChronoMessages().ToList());
         var result = new List<Message>();
 
         // Preserve first message if it's a system message
@@ -69,44 +74,58 @@ public class SlidingWindowConversationManager : DefaultConversationManager
         return result;
     }
 
+    public override void Reset()
+    {
+        base.Reset();
+        _summaryQueue?.Clear();
+        _summarizedCount = 0;
+    }
+
+    /// <summary>
+    /// Fold the messages that have newly fallen out of the sliding window into a summary.
+    /// This is a <em>context</em> compaction: physical history in <see cref="DefaultConversationManager.Conversation"/>
+    /// is retained; only the context returned by <see cref="ExtractMessagesForNextTurn"/> is reduced.
+    /// Already-summarized messages are never re-summarized, so repeated compaction does not
+    /// produce overlapping duplicate summaries.
+    /// </summary>
     public override async Task<bool> CompactConversationAsync()
     {
         var allMessages = Conversation.ToChronoMessages().ToList();
+        var outsideWindow = Math.Max(0, allMessages.Count - _windowSize);
 
-        if (allMessages.Count <= _windowSize)
+        // Only summarize messages that fell out of the window since the last compaction.
+        if (outsideWindow <= _summarizedCount)
         {
             return false;
         }
 
-        // Messages that will fall out of the window
-        var messagesToCompact = allMessages.SkipLast(_windowSize).ToList();
+        var newlyFallenOut = allMessages
+            .Take(outsideWindow)
+            .Skip(_summarizedCount)
+            .ToList();
 
-        if (messagesToCompact.Any())
+        if (newlyFallenOut.Count == 0)
         {
-            // Create a summary of the messages being removed
-            var summary = await CreateSummaryFromMessages(messagesToCompact);
-
-            // Initialize summary queue if needed
-            _summaryQueue ??= new Queue<Message>(3); // Keep last 3 summaries
-
-            // Add to summary queue
-            _summaryQueue.Enqueue(new Message
-            {
-                Role = Role.System,
-                Content = summary,
-                Timestamp = DateTimeOffset.UtcNow
-            });
-
-            // Keep only recent summaries
-            while (_summaryQueue.Count > 3)
-            {
-                _summaryQueue.Dequeue();
-            }
-
-            return true;
+            return false;
         }
 
-        return false;
+        var summary = await CreateSummaryFromMessages(newlyFallenOut);
+
+        _summaryQueue ??= new Queue<Message>(3); // Keep last 3 summaries
+        _summaryQueue.Enqueue(new Message
+        {
+            Role = Role.System,
+            Content = summary,
+            Timestamp = DateTimeOffset.UtcNow
+        });
+
+        while (_summaryQueue.Count > 3)
+        {
+            _summaryQueue.Dequeue();
+        }
+
+        _summarizedCount = outsideWindow;
+        return true;
     }
 
     private async Task<string> CreateSummaryFromMessages(List<Message> messages)

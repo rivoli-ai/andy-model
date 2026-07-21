@@ -39,7 +39,7 @@ public class MessageModelTests
         {
             Role = Role.Assistant,
             Content = "I'll search for that.",
-            ToolCalls = new List<ToolCall> {toolCall}
+            ToolCalls = new List<ToolCall> { toolCall }
         };
 
         // Assert
@@ -70,7 +70,7 @@ public class MessageModelTests
     public void ToolResult_FromObject_SerializesCorrectly()
     {
         // Arrange
-        var result = new {value = 42, message = "success"};
+        var result = new { value = 42, message = "success" };
 
         // Act
         var toolResult = ToolResult.FromObject("call_1", "calculator", result);
@@ -89,8 +89,8 @@ public class MessageModelTests
         // Arrange
         var turn = new Turn
         {
-            UserOrSystemMessage = new Message {Role = Role.User, Content = "Hello"},
-            AssistantMessage = new Message {Role = Role.Assistant, Content = "Hi there!"},
+            UserOrSystemMessage = new Message { Role = Role.User, Content = "Hello" },
+            AssistantMessage = new Message { Role = Role.Assistant, Content = "Hi there!" },
             ToolMessages = new List<Message>
             {
                 new() {Role = Role.Tool, Content = "Tool result"}
@@ -114,7 +114,7 @@ public class MessageModelTests
         var conversation = new Model.Conversation();
         var turn = new Turn
         {
-            UserOrSystemMessage = new Message {Role = Role.User, Content = "Test"}
+            UserOrSystemMessage = new Message { Role = Role.User, Content = "Test" }
         };
 
         // Act

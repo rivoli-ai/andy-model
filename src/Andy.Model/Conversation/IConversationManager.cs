@@ -27,11 +27,26 @@ public interface IConversationManager
     IEnumerable<Message> ExtractMessagesForNextTurn();
 
     /// <summary>
-    /// Compact the conversation history to reduce memory usage or token count.
-    /// This operation may be irreversible depending on the strategy.
+    /// Compact the conversation's <em>context</em> to reduce token count.
     /// </summary>
+    /// <remarks>
+    /// Compaction affects what <see cref="ExtractMessagesForNextTurn"/> returns and/or the
+    /// summary state a manager records. It is <b>context</b> compaction, not physical deletion:
+    /// implementations in this library never remove turns from <see cref="Conversation"/>, so the
+    /// full history remains available (for persistence, auditing, or statistics). A custom
+    /// implementation that physically prunes history should document that departure explicitly.
+    /// </remarks>
     /// <returns>True if compaction occurred, false if not needed.</returns>
     Task<bool> CompactConversationAsync();
+
+    /// <summary>
+    /// Single, awaited entry point for automatic (orchestration-driven) compaction.
+    /// Performs compaction only when the <c>AutoCompact</c> option is enabled and
+    /// <see cref="ShouldCompact"/> returns true. This is the sole owner of automatic
+    /// compaction; <see cref="AddTurn"/> never triggers compaction on its own.
+    /// </summary>
+    /// <returns>True if compaction occurred, false otherwise.</returns>
+    Task<bool> CompactIfNeededAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Get a summary of the conversation up to this point.

@@ -28,8 +28,46 @@ public class TurnStartedEventArgs : AssistantEventArgs
 public class TurnCompletedEventArgs : AssistantEventArgs
 {
     public Message AssistantMessage { get; init; } = null!;
+
+    /// <summary>
+    /// Number of tool calls that were actually invoked (i.e. dispatched to a
+    /// registered tool), regardless of whether they succeeded or returned an error.
+    /// Equivalent to <see cref="ToolCallsSucceeded"/> + <see cref="ToolCallsFailed"/>.
+    /// Validation-rejected and missing-tool calls are excluded.
+    /// </summary>
     public int ToolCallsExecuted { get; init; }
+
+    /// <summary>Total tool calls the provider requested across every round of the turn.</summary>
+    public int ToolCallsAttempted { get; init; }
+
+    /// <summary>Tool calls that were invoked and returned a non-error result.</summary>
+    public int ToolCallsSucceeded { get; init; }
+
+    /// <summary>Tool calls that were invoked but threw or returned an error result.</summary>
+    public int ToolCallsFailed { get; init; }
+
+    /// <summary>Tool calls rejected by schema validation before invocation.</summary>
+    public int ToolCallsValidationRejected { get; init; }
+
+    /// <summary>Tool calls whose named tool was not found in the registry.</summary>
+    public int ToolCallsNotFound { get; init; }
+
+    /// <summary>Number of tool-execution rounds performed within the turn.</summary>
+    public int ToolRounds { get; init; }
+
     public TimeSpan Duration { get; init; }
+}
+
+/// <summary>
+/// Event raised when the bounded tool-call loop reaches its iteration limit while
+/// the provider is still requesting tool calls.
+/// </summary>
+public class ToolIterationLimitReachedEventArgs : AssistantEventArgs
+{
+    public int MaxToolIterations { get; init; }
+
+    /// <summary>The pending tool calls that were not executed because the limit was hit.</summary>
+    public ToolCall[] PendingToolCalls { get; init; } = Array.Empty<ToolCall>();
 }
 
 /// <summary>
