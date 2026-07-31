@@ -55,7 +55,7 @@ The library includes multiple conversation management strategies through the `IC
 
 ### Prerequisites
 
-- .NET 8.0 or later
+- .NET 10.0 or later
 - NuGet package manager
 
 ### Package Installation
